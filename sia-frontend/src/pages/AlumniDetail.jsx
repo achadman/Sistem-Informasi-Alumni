@@ -62,7 +62,18 @@ export default function AlumniDetail() {
     );
   }
 
-  // Same layout as AlumniProfile
+  // Formatting address string
+  const fullAddress = [
+    person.alamat,
+    person.rt ? `RT ${person.rt}` : null,
+    person.rw ? `RW ${person.rw}` : null,
+    person.kelurahan ? `Kel. ${person.kelurahan}` : null,
+    person.kecamatan ? `Kec. ${person.kecamatan}` : null,
+    person.kota_kabupaten || person.kota,
+    person.provinsi,
+    person.negara !== 'Indonesia' ? person.negara : null
+  ].filter(Boolean).join(', ');
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -162,7 +173,12 @@ export default function AlumniDetail() {
                 <BiodataItem 
                   icon={<MapPin />} 
                   label="Kota/Kabupaten" 
-                  value={person.kota || '-'} 
+                  value={person.kota_kabupaten || person.kota || '-'} 
+                />
+                <BiodataItem 
+                  icon={<MapPin />} 
+                  label="Kecamatan" 
+                  value={person.kecamatan || '-'} 
                 />
                 <BiodataItem 
                     icon={<Phone />} 
@@ -174,11 +190,13 @@ export default function AlumniDetail() {
                     label="Email" 
                     value={person.email || '-'} 
                  />
-                 <BiodataItem 
-                   icon={<MapPin />} 
-                   label="Alamat Lengkap" 
-                   value={person.alamat ? `${person.alamat} ${person.rt ? 'RT '+person.rt:''}${person.rw ? '/RW '+person.rw:''} ${person.kelurahan? 'Kel. '+person.kelurahan:''}` : '-'} 
-                 />
+                 <div className="md:col-span-2">
+                    <BiodataItem 
+                      icon={<MapPin />} 
+                      label="Alamat Lengkap" 
+                      value={fullAddress} 
+                    />
+                 </div>
                 {person.agama && (
                   <BiodataItem 
                     icon={<BookOpen />} 

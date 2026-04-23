@@ -37,6 +37,9 @@ export default function MasterNIM() {
     passwordConfirm: ''
   });
 
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [isBulkEdit, setIsBulkEdit] = useState(false);
+
   useEffect(() => {
     fetchUsers();
     fetchAlumni();
@@ -184,6 +187,14 @@ export default function MasterNIM() {
 
   const openEditModal = (u) => {
     setEditUser(u);
+    setIsBulkEdit(false);
+    setEditFormData({ password: '', passwordConfirm: '' });
+    setIsEditModalOpen(true);
+  };
+
+  const handleBulkEditPassword = () => {
+    setEditUser(null);
+    setIsBulkEdit(true);
     setEditFormData({ password: '', passwordConfirm: '' });
     setIsEditModalOpen(true);
   };
@@ -197,11 +208,22 @@ export default function MasterNIM() {
 
     setSaving(true);
     try {
-      await pb.collection('users').update(editUser.id, {
-        password: editFormData.password,
-        passwordConfirm: editFormData.passwordConfirm
-      });
-      alert('Password berhasil diubah!');
+      if (isBulkEdit) {
+        for (const id of selectedUsers) {
+          await pb.collection('users').update(id, {
+            password: editFormData.password,
+            passwordConfirm: editFormData.passwordConfirm
+          });
+        }
+        alert(`Password ${selectedUsers.length} akun berhasil diubah!`);
+        setSelectedUsers([]);
+      } else {
+        await pb.collection('users').update(editUser.id, {
+          password: editFormData.password,
+          passwordConfirm: editFormData.passwordConfirm
+        });
+        alert('Password berhasil diubah!');
+      }
       setIsEditModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -215,10 +237,29 @@ export default function MasterNIM() {
     if (window.confirm("Apakah Anda yakin ingin menghapus akun ini?")) {
       try {
         await pb.collection('users').delete(id);
+        setSelectedUsers(prev => prev.filter(userId => userId !== id));
         fetchUsers();
       } catch (err) {
         console.error(err);
         alert('Gagal menghapus akun');
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedUsers.length} akun terpilih?`)) {
+      try {
+        setLoading(true);
+        for (const id of selectedUsers) {
+           await pb.collection('users').delete(id);
+        }
+        setSelectedUsers([]);
+        fetchUsers();
+      } catch (err) {
+        console.error(err);
+        alert('Gagal menghapus beberapa akun');
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -234,6 +275,21 @@ export default function MasterNIM() {
     (u.username || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const selectable = filteredUsers.filter(u => u.role !== 'admin');
+      setSelectedUsers(selectable.map(u => u.id));
+    } else {
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleSelectUser = (id) => {
+    setSelectedUsers(prev => 
+      prev.includes(id) ? prev.filter(userId => userId !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -243,6 +299,26 @@ export default function MasterNIM() {
         </div>
         
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          {selectedUsers.length > 0 && (
+            <div className="flex justify-center items-center gap-2 bg-brand-light/50 px-4 py-2 rounded-xl border border-brand-primary/20 shadow-sm animate-in fade-in zoom-in duration-300">
+              <span className="text-sm font-bold text-brand-primary whitespace-nowrap">{selectedUsers.length} Terpilih</span>
+              <div className="w-px h-5 bg-brand-primary/20 mx-1"></div>
+              <button 
+                onClick={handleBulkEditPassword}
+                className="p-1.5 text-brand-primary hover:bg-white rounded-lg transition-all"
+                title="Beri Satu Password untuk Semua"
+              >
+                <Edit3 size={18} />
+              </button>
+              <button 
+                onClick={handleBulkDelete}
+                className="p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all"
+                title="Hapus Akun Terpilih"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          )}
           <div className="relative w-full md:w-64">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
@@ -274,7 +350,15 @@ export default function MasterNIM() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-50 bg-white">
-                <th className="px-8 py-5 text-sm font-bold text-slate-400 uppercase tracking-wider w-16">No.</th>
+                <th className="px-6 py-5 w-12 text-center">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedUsers.length > 0 && selectedUsers.length === filteredUsers.filter(u => u.role !== 'admin').length}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                  />
+                </th>
+                <th className="px-4 py-5 text-sm font-bold text-slate-400 uppercase tracking-wider w-16">No.</th>
                 <th className="px-6 py-5 text-sm font-bold text-slate-400 uppercase tracking-wider">Nama Alumni</th>
                 <th className="px-6 py-5 text-sm font-bold text-slate-400 uppercase tracking-wider">Username / NIM</th>
                 <th className="px-6 py-5 text-sm font-bold text-slate-400 uppercase tracking-wider">Role</th>
@@ -290,14 +374,24 @@ export default function MasterNIM() {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-8 py-10 text-center text-slate-400">
+                  <td colSpan="6" className="px-8 py-10 text-center text-slate-400">
                     {searchTerm ? `Tidak ditemukan hasil untuk "${searchTerm}"` : 'Belum ada akun alumni yang dibuat.'}
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((u, index) => (
-                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-8 py-4 font-bold text-slate-400">{index + 1}</td>
+                  <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${selectedUsers.includes(u.id) ? 'bg-brand-light/30' : ''}`}>
+                    <td className="px-6 py-4 text-center">
+                      {u.role !== 'admin' && (
+                        <input 
+                          type="checkbox"
+                          checked={selectedUsers.includes(u.id)}
+                          onChange={() => handleSelectUser(u.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                        />
+                      )}
+                    </td>
+                    <td className="px-4 py-4 font-bold text-slate-400">{index + 1}</td>
                     <td className="px-6 py-4 font-bold text-slate-800">{u.name || '-'}</td>
                     <td className="px-6 py-4 font-medium text-slate-600">{u.username}</td>
                     <td className="px-6 py-4">
@@ -497,8 +591,8 @@ export default function MasterNIM() {
 
               <form onSubmit={handleEditSubmit} className="p-8 space-y-6">
                 <div className="p-4 bg-brand-light/50 border border-brand-primary/20 rounded-xl mb-4">
-                  <p className="text-sm font-bold text-brand-primary">
-                    Ubah password untuk: {editUser?.name} ({editUser?.username})
+                  <p className="text-sm font-medium text-brand-primary">
+                    Ubah password untuk: <span className="font-bold">{isBulkEdit ? `${selectedUsers.length} akun terpilih` : `${editUser?.name} (${editUser?.username})`}</span>
                   </p>
                 </div>
 

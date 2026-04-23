@@ -12,7 +12,8 @@ import {
   TrendingDown,
   Layers,
   PieChart as PieChartIcon,
-  BarChart as BarChartIcon
+  BarChart as BarChartIcon,
+  Info
 } from 'lucide-react';
 import { pb } from '../lib/pb';
 
@@ -27,9 +28,15 @@ export default function AdminDashboard() {
         genderBatch: { batches: [], male: [], female: [] },
         regionStats: [],
         dropoutStats: [],
-        churnRate: '0.0%'
+        churnRate: '0.0%',
+        fakultasStats: [],
+        prodiStats: []
       }
     });
+
+  // New States for Chart Filters
+  const [activePieChart, setActivePieChart] = useState('karir'); // 'karir' | 'fakultas'
+  const [activeBarChart, setActiveBarChart] = useState('geografis'); // 'geografis' | 'prodi' | 'dropout' | 'gender'
 
   useEffect(() => {
     fetchDashboardData();
@@ -38,14 +45,13 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [alumniRecords, tracerRecords] = await Promise.all([
+      const [alumniRecords, tracerRecords, fakultasList, prodiList] = await Promise.all([
         pb.collection('alumni').getFullList(),
-        pb.collection('tracer_studies').getFullList() // Fixed collection name
+        pb.collection('tracer_studies').getFullList(),
+        pb.collection('fakultas').getFullList({ sort: 'nama' }),
+        pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama' })
       ]);
 
-      console.log("DEBUG: Records fetched:", alumniRecords.length);
-      console.log("DEBUG: Sample Record:", alumniRecords[0]);
-      console.log("DEBUG: DO Records Count:", alumniRecords.filter(a => a.keterangan === 'Drop Out (DO)').length);
       const workCounts = alumniRecords.reduce((acc, curr) => {
         if (!curr.status_kerja) return acc;
         const status = curr.status_kerja.charAt(0).toUpperCase() + curr.status_kerja.slice(1);
@@ -85,7 +91,6 @@ export default function AdminDashboard() {
       // AGGREGATE DROPOUTS (By Semester)
       const dropoutCounts = Array(8).fill(0);
       alumniRecords.forEach(a => {
-        // Robust check for keterangan
         const keterangan = a.keterangan ? String(a.keterangan).trim().toLowerCase() : '';
         const isDO = keterangan === 'drop out (do)';
         const sem = parseInt(a.semester_dropout) || 0;
@@ -94,14 +99,37 @@ export default function AdminDashboard() {
           dropoutCounts[sem - 1]++;
         }
       });
-      console.log("DEBUG: Dropout Counts by Smt:", dropoutCounts);
 
       // AGGREGATE CHURN RATE OVERALL
       const totalDO = alumniRecords.filter(a => a.keterangan === 'Drop Out (DO)').length;
       const totalAlumniRecords = alumniRecords.length || 1;
       const churnRateCalculated = ((totalDO / totalAlumniRecords) * 100).toFixed(1) + '%';
-      
-      console.log("DEBUG: Total DO found:", totalDO);
+
+      // AGGREGATE PRODI & FAKULTAS
+      const prodiCounts = {};
+      const fakultasCounts = {};
+
+      alumniRecords.forEach(a => {
+        if (!a.prodi) return;
+        
+        prodiCounts[a.prodi] = (prodiCounts[a.prodi] || 0) + 1;
+
+        const matchedProdi = prodiList.find(p => p.nama.toLowerCase() === a.prodi.toLowerCase());
+        if (matchedProdi && matchedProdi.expand && matchedProdi.expand.fakultas_id) {
+          const fName = matchedProdi.expand.fakultas_id.nama;
+          fakultasCounts[fName] = (fakultasCounts[fName] || 0) + 1;
+        } else {
+          fakultasCounts['Lainnya'] = (fakultasCounts['Lainnya'] || 0) + 1;
+        }
+      });
+
+      const prodiStatsData = Object.entries(prodiCounts)
+        .sort((a, b) => a[1] - b[1]) // Ascending for horizontal bar chart
+        .map(([name, value]) => ({ name, value }));
+
+      const fakultasStatsData = Object.entries(fakultasCounts)
+        .sort((a, b) => b[1] - a[1]) // Descending for pie chart
+        .map(([name, value]) => ({ name, value }));
 
       setData({
         alumni: alumniRecords,
@@ -112,7 +140,9 @@ export default function AdminDashboard() {
           regionStats: topRegions,
           dropoutStats: dropoutCounts,
           churnRate: churnRateCalculated,
-          graduationRate: [82, 85, 81, 88, 92, 90] 
+          graduationRate: [82, 85, 81, 88, 92, 90],
+          prodiStats: prodiStatsData,
+          fakultasStats: fakultasStatsData
         }
       });
     } catch (err) {
@@ -124,325 +154,411 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- ECharts Options ---
-
-  const tracerStatusOption = {
-    tooltip: { 
-      trigger: 'item',
-      extraCssText: 'z-index: 1000; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);' 
-    },
-    legend: { 
-      bottom: '0', 
-      left: 'center', 
-      textStyle: { color: '#64748b' },
-      padding: [10, 0, 0, 0]
-    },
-    series: [
-      {
-        name: 'Status Alumni',
-        type: 'pie',
-        radius: ['45%', '65%'],
-        center: ['50%', '40%'],
-        avoidLabelOverlap: true,
-        itemStyle: { borderRadius: 12, borderColor: '#fff', borderWidth: 2 },
-        label: { show: false },
-        labelLine: { show: false },
-        data: data.stats.workStatus.length > 0 ? data.stats.workStatus : [{ value: 0, name: 'Belum ada data' }]
-      }
-    ]
+  // --- Insight Generation Functions ---
+  const getPieInsight = () => {
+    if (loading) return "Memuat data insight...";
+    
+    if (activePieChart === 'karir') {
+      const stats = data.stats.workStatus;
+      if (!stats || stats.length === 0) return "Belum ada data status karir yang cukup untuk dianalisis.";
+      const sorted = [...stats].sort((a, b) => b.value - a.value);
+      const total = sorted.reduce((sum, item) => sum + item.value, 0);
+      const top = sorted[0];
+      const percentage = Math.round((top.value / total) * 100);
+      return `Mayoritas alumni saat ini berstatus "${top.name}" dengan total ${top.value} orang (${percentage}% dari total responden tracer).`;
+    } 
+    
+    if (activePieChart === 'fakultas') {
+      const stats = data.stats.fakultasStats;
+      if (!stats || stats.length === 0) return "Belum ada data distribusi fakultas yang cukup untuk dianalisis.";
+      const sorted = [...stats].sort((a, b) => b.value - a.value);
+      const top = sorted[0];
+      return `Fakultas "${top.name}" mendominasi jumlah alumni terbanyak dengan total ${top.value} lulusan.`;
+    }
+    return "";
   };
 
-  const graduationRateOption = {
-    tooltip: { 
-      trigger: 'axis',
-      extraCssText: 'z-index: 1000; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'
-    },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { 
-      type: 'category', 
-      data: ['2019', '2020', '2021', '2022', '2023', '2024'],
-      axisLine: { lineStyle: { color: '#f1f5f9' } },
-      axisLabel: { color: '#94a3b8' }
-    },
-    yAxis: { 
-      type: 'value',
-      splitLine: { lineStyle: { color: '#f8fafc' } },
-      axisLabel: { color: '#94a3b8' }
-    },
+  const getBarInsight = () => {
+    if (loading) return "Memuat data insight...";
+    
+    if (activeBarChart === 'geografis') {
+      const stats = data.stats.regionStats;
+      if (!stats || stats.length === 0) return "Belum ada sebaran wilayah yang tercatat.";
+      const top = stats[0];
+      return `Persebaran alumni paling terpusat di wilayah ${top.name} (${top.value} orang), menjadikannya basis jaringan terbesar saat ini.`;
+    }
+    
+    if (activeBarChart === 'prodi') {
+      const stats = data.stats.prodiStats;
+      if (!stats || stats.length === 0) return "Belum ada data program studi.";
+      // prodiStats is sorted ascending for horizontal bar chart, so the highest is at the end
+      const top = stats[stats.length - 1];
+      return `Program Studi ${top.name} mencetak lulusan terbanyak (${top.value} alumni) dibanding program studi lainnya.`;
+    }
+
+    if (activeBarChart === 'dropout') {
+       const stats = data.stats.dropoutStats;
+       const totalDO = stats.reduce((sum, val) => sum + val, 0);
+       if (totalDO === 0) return "Sangat baik! Tidak ditemukan catatan mahasiswa Drop Out pada database saat ini.";
+       const maxIndex = stats.indexOf(Math.max(...stats));
+       return `Tercatat total ${totalDO} kasus Drop Out, dengan insiden terbanyak terjadi pada Semester ${maxIndex + 1} (${stats[maxIndex]} mahasiswa).`;
+    }
+
+    if (activeBarChart === 'gender') {
+       const { batches, male, female } = data.stats.genderBatch;
+       if (!batches || batches.length === 0) return "Belum ada tren angkatan yang tercatat.";
+       const latestBatchIndex = batches.length - 1;
+       const maleCount = male[latestBatchIndex] || 0;
+       const femaleCount = female[latestBatchIndex] || 0;
+       const dominant = maleCount > femaleCount ? 'Laki-laki' : (femaleCount > maleCount ? 'Perempuan' : 'seimbang laki-laki dan perempuan');
+       return `Pada angkatan terbaru (${batches[latestBatchIndex]}), komposisi lulusan didominasi oleh ${dominant} (${Math.max(maleCount, femaleCount)} orang).`;
+    }
+    return "";
+  };
+
+  const renderPieStats = () => {
+    if (activePieChart === 'karir') {
+      return (
+        <div className="flex flex-col gap-3">
+           <StatRow label="Alumni Bekerja" value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'bekerja').length} color="blue" icon={<Briefcase size={16}/>} />
+           <StatRow label="Wiraswasta" value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'wiraswasta').length} color="emerald" icon={<TrendingUp size={16}/>} />
+           <StatRow label="Studi Lanjut" value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('studi')).length} color="purple" icon={<GraduationCap size={16}/>} />
+           <StatRow label="Belum Bekerja" value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('belum')).length} color="amber" icon={<UserX size={16}/>} />
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+          {data.stats.fakultasStats.map((f, i) => (
+             <StatRow key={i} label={f.name} value={f.value} color="indigo" icon={<Layers size={16}/>} />
+          ))}
+        </div>
+      );
+    }
+  };
+
+  const renderBarStats = () => {
+    if (activeBarChart === 'geografis') {
+       return (
+        <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+          {data.stats.regionStats.map((r, i) => (
+             <StatRow key={i} label={r.name} value={r.value} color="blue" icon={<MapIcon size={16}/>} />
+          ))}
+        </div>
+       )
+    } else if (activeBarChart === 'prodi') {
+       const sorted = [...data.stats.prodiStats].reverse();
+       return (
+        <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+          {sorted.map((p, i) => (
+             <StatRow key={i} label={p.name} value={p.value} color="indigo" icon={<GraduationCap size={16}/>} />
+          ))}
+        </div>
+       )
+    } else if (activeBarChart === 'dropout') {
+       const totalDO = data.stats.dropoutStats.reduce((a,b)=>a+b,0);
+       return (
+         <div className="flex flex-col gap-3">
+           <StatRow label="Total Drop Out" value={totalDO} color="red" icon={<TrendingDown size={16}/>} />
+           <StatRow label="Tingkat Retensi DO" value={data.stats.churnRate} color="amber" icon={<PieChartIcon size={16}/>} />
+         </div>
+       )
+    } else if (activeBarChart === 'gender') {
+       const totalLaki = data.alumni.filter(a => a.gender === 'L').length;
+       const totalPr = data.alumni.filter(a => a.gender === 'P').length;
+       return (
+         <div className="flex flex-col gap-3">
+           <StatRow label="Total Laki-laki" value={totalLaki} color="blue" icon={<Users size={16}/>} />
+           <StatRow label="Total Perempuan" value={totalPr} color="purple" icon={<Users size={16}/>} />
+           <StatRow label="Total Lulusan" value={data.alumni.length} color="emerald" icon={<GraduationCap size={16}/>} />
+         </div>
+       )
+    }
+  };
+
+  // ── Warm Soft Neutral chart palette ──
+  const SOFT_TOOLTIP = 'z-index:1000;border-radius:10px;border:1px solid rgba(0,0,0,0.07);box-shadow:0 2px 12px rgba(0,0,0,0.07);background:#FDFCFB;color:#1C1917;font-size:12px;';
+  const CHART_COLORS = ['#6B9FD4', '#5BAD8F', '#9B8EC4', '#E8A87C', '#D97474', '#7BBCB0'];
+
+  // --- ECharts Options ---
+  const tracerStatusOption = {
+    tooltip: { trigger: 'item', extraCssText: SOFT_TOOLTIP },
+    legend: { bottom: '0', left: 'center', textStyle: { color: '#64748b', fontSize: 12 }, padding: [10, 0, 0, 0] },
+    color: CHART_COLORS,
     series: [{
-      name: 'Persentase Tepat Waktu',
-      type: 'line',
-      smooth: true,
-      data: data.stats.graduationRate,
-      itemStyle: { color: '#3b82f6' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [{ offset: 0, color: 'rgba(59, 130, 246, 0.2)' }, { offset: 1, color: 'rgba(59, 130, 246, 0)' }]
-        }
-      }
+      name: 'Status Alumni',
+      type: 'pie',
+      radius: ['45%', '65%'],
+      center: ['50%', '40%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 10, borderColor: '#F0F4FF', borderWidth: 3 },
+      label: { show: false },
+      labelLine: { show: false },
+      data: data.stats.workStatus.length > 0 ? data.stats.workStatus.map((d, i) => ({...d, itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] }})) : [{ value: 0, name: 'Belum ada data' }]
     }]
   };
 
-  const genderOption = {
-    tooltip: { 
-      trigger: 'axis', 
-      axisPointer: { type: 'shadow' },
-      extraCssText: 'z-index: 1000; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'
-    },
-    legend: { bottom: '0', textStyle: { color: '#64748b' } },
-    grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-    xAxis: { type: 'value', show: false },
-    yAxis: { 
-      type: 'category', 
-      data: data.stats.genderBatch.batches?.map(b => `Angkatan ${b}`) || [],
-      axisLine: { show: false },
-      axisTick: { show: false }
-    },
-    series: [
-      {
-        name: 'Laki-laki',
-        type: 'bar',
-        stack: 'total',
-        label: { show: true },
-        data: data.stats.genderBatch.male || [],
-        itemStyle: { color: '#3b82f6' }
-      },
-      {
-        name: 'Perempuan',
-        type: 'bar',
-        stack: 'total',
-        label: { show: true },
-        data: data.stats.genderBatch.female || [],
-        itemStyle: { color: '#ec4899' }
-      }
-    ]
-  };
-
-  const churnRateOption = {
-    tooltip: { 
-      trigger: 'axis', 
-      axisPointer: { type: 'shadow' },
-      extraCssText: 'z-index: 1000; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'
-    },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { 
-      type: 'category', 
-      data: ['Smt 1', 'Smt 2', 'Smt 3', 'Smt 4', 'Smt 5', 'Smt 6', 'Smt 7', 'Smt 8'],
-      axisLine: { lineStyle: { color: '#f1f5f9' } },
-      axisLabel: { color: '#94a3b8' }
-    },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f8fafc' } } },
+  const fakultasChartOption = {
+    tooltip: { trigger: 'item', extraCssText: SOFT_TOOLTIP },
+    legend: { bottom: '0', left: 'center', textStyle: { color: '#64748b', fontSize: 12 }, padding: [10, 0, 0, 0] },
+    color: CHART_COLORS,
     series: [{
-      name: 'Jumlah DO',
-      type: 'bar',
-      data: data.stats.dropoutStats,
-      itemStyle: {
-        color: '#ef4444',
-        borderRadius: [6, 6, 0, 0]
-      },
-      barWidth: '60%',
-      label: {
-        show: true,
-        position: 'top',
-        color: '#ef4444',
-        fontWeight: 'bold'
-      }
+      name: 'Jumlah Alumni',
+      type: 'pie',
+      radius: ['45%', '65%'],
+      center: ['50%', '40%'],
+      avoidLabelOverlap: true,
+      itemStyle: { borderRadius: 10, borderColor: '#F0F4FF', borderWidth: 3 },
+      label: { show: false },
+      labelLine: { show: false },
+      data: data.stats.fakultasStats.length > 0 ? data.stats.fakultasStats.map((d, i) => ({...d, itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] }})) : [{ value: 0, name: 'Belum ada data' }]
     }]
   };
 
   const regionHeatmapOption = {
-    tooltip: { 
-      trigger: 'axis', 
-      axisPointer: { type: 'shadow' },
-      extraCssText: 'z-index: 1000; border-radius: 8px; border: none; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);'
-    },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.03)' } }, extraCssText: SOFT_TOOLTIP },
     grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { 
-      type: 'category', 
+    xAxis: {
+      type: 'category',
       data: data.stats.regionStats.map(r => r.name),
-      axisLine: { lineStyle: { color: '#f1f5f9' } },
-      axisLabel: { color: '#94a3b8', interval: 0, rotate: 45 }
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisLabel: { color: '#7A7672', interval: 0, rotate: 45, fontSize: 11 }
     },
-    yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f8fafc' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(0,0,0,0.05)', type: 'dashed' } }, axisLabel: { color: '#7A7672', fontSize: 11 } },
     series: [{
       name: 'Jumlah Alumni',
       type: 'bar',
       data: data.stats.regionStats.map((r, idx) => ({
         value: r.value,
-        itemStyle: { 
-          color: idx === 0 ? '#1e3a8a' : idx === 1 ? '#1d4ed8' : idx === 2 ? '#2563eb' : idx === 3 ? '#3b82f6' : idx === 4 ? '#60a5fa' : '#cbd5e1' 
-        }
+        itemStyle: { color: ['#6B9FD4','#7BBCB0','#9B8EC4','#E8A87C','#5BAD8F','#D4B896'][idx] || '#C9C0B8' }
       })),
-      itemStyle: { borderRadius: [6, 6, 0, 0] },
-      barWidth: '60%'
+      itemStyle: { borderRadius: [5, 5, 0, 0] },
+      barWidth: '55%'
     }]
   };
 
+  const prodiChartOption = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.03)' } }, extraCssText: SOFT_TOOLTIP },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(0,0,0,0.05)', type: 'dashed' } }, axisLabel: { color: '#7A7672', fontSize: 11 } },
+    yAxis: {
+      type: 'category',
+      data: data.stats.prodiStats.map(p => p.name),
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisLabel: { color: '#7A7672', fontSize: 11, width: 120, overflow: 'truncate' }
+    },
+    series: [{
+      name: 'Jumlah Alumni',
+      type: 'bar',
+      data: data.stats.prodiStats.map(p => p.value),
+      itemStyle: { color: '#9B8EC4', borderRadius: [0, 5, 5, 0] },
+      barWidth: '60%',
+      label: { show: true, position: 'right', color: '#7B6BAA', fontWeight: '600', fontSize: 12 }
+    }]
+  };
+
+  const churnRateOption = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.03)' } }, extraCssText: SOFT_TOOLTIP },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: ['Smt 1', 'Smt 2', 'Smt 3', 'Smt 4', 'Smt 5', 'Smt 6', 'Smt 7', 'Smt 8'],
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisLabel: { color: '#7A7672', fontSize: 11 }
+    },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(0,0,0,0.05)', type: 'dashed' } }, axisLabel: { color: '#7A7672', fontSize: 11 } },
+    series: [{
+      name: 'Jumlah DO',
+      type: 'bar',
+      data: data.stats.dropoutStats,
+      itemStyle: { color: '#D97474', borderRadius: [5, 5, 0, 0] },
+      barWidth: '60%',
+      label: { show: true, position: 'top', color: '#B85C5C', fontWeight: '600', fontSize: 11 }
+    }]
+  };
+
+  const genderOption = {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(0,0,0,0.03)' } }, extraCssText: SOFT_TOOLTIP },
+    legend: { bottom: '0', textStyle: { color: '#7A7672', fontSize: 12 } },
+    grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+    xAxis: { type: 'value', show: false },
+    yAxis: {
+      type: 'category',
+      data: data.stats.genderBatch.batches?.map(b => `Angkatan ${b}`) || [],
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#7A7672', fontSize: 11 }
+    },
+    series: [
+      { name: 'Laki-laki', type: 'bar', stack: 'total', label: { show: true, fontSize: 11 }, data: data.stats.genderBatch.male || [], itemStyle: { color: '#6B9FD4', borderRadius: [4, 0, 0, 4] } },
+      { name: 'Perempuan', type: 'bar', stack: 'total', label: { show: true, fontSize: 11 }, data: data.stats.genderBatch.female || [], itemStyle: { color: '#9B8EC4', borderRadius: [0, 4, 4, 0] } }
+    ]
+  };
+
+  const exportToCSV = () => {
+    if (!data.alumni || data.alumni.length === 0) return;
+    
+    const headers = ["NIM", "Nama", "Tahun Lulus", "Prodi", "Gender", "Status Kerja", "Provinsi", "Kota"];
+    const rows = data.alumni.map(a => [
+      a.nim, `"${a.nama}"`, a.tahun_lulus, `"${a.prodi}"`, a.gender, `"${a.status_kerja || '-'}"`, `"${a.provinsi || '-'}"`, `"${a.kota || '-'}"`
+    ]);
+    
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Data_Alumni_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6 md:space-y-10 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-6 md:space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Pantau performa institusi secara mendalam.</p>
+          <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Executive Dashboard</h1>
+          <p className="text-sm text-secondary mt-1 font-medium">Analisis mendalam sebaran karir alumni & statistik institusi.</p>
         </div>
         <div className="flex gap-3">
-           <button className="px-4 py-2 bg-white border border-slate-100 rounded-xl text-sm font-bold text-slate-600 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2">
-             <Layers size={16} /> Filter Data
-           </button>
-           <button className="px-4 py-2 bg-blue-600 rounded-xl text-sm font-bold text-white shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2">
-             Ekspor Laporan
+           <button onClick={exportToCSV} className="px-6 py-2.5 bg-blue-600 rounded-2xl text-xs font-black text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500 transition-all flex items-center gap-2 uppercase tracking-wider active:scale-95">
+             Ekspor CSV
            </button>
         </div>
       </header>
 
-      {/* SECTION 1: ALUMNI TRACER (EXTERNAL) */}
-      <section className="space-y-6">
-        <div className="flex items-center gap-3">
-           <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-           <h2 className="text-xl font-bold text-slate-800">Alumni Tracer (Data Eksternal)</h2>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-           <KpiCard 
-              title="Alumni Bekerja" 
-              value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'bekerja').length} 
-              trend="+5.2%" 
-              icon={<Briefcase size={20} />} 
-              color="blue" 
-              subtitle="Terserap Industri" 
-           />
-           <KpiCard 
-              title="Wiraswasta" 
-              value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'wiraswasta').length} 
-              trend="+1.8%" 
-              icon={<TrendingUp size={20} />} 
-              color="emerald" 
-              subtitle="Kemandirian Lulusan" 
-           />
-           <KpiCard 
-              title="Studi Lanjut" 
-              value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('studi')).length} 
-              trend="-0.5%" 
-              icon={<GraduationCap size={20} />} 
-              color="purple" 
-              subtitle="S2 / S3" 
-           />
-           <KpiCard 
-              title="Belum Bekerja" 
-              color="amber" 
-              value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('belum')).length} 
-              trend="-12%" 
-              icon={<UserX size={20} />} 
-              subtitle="Gap Year / Cari Kerja" 
-           />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
-           <div className="lg:col-span-1 bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-soft">
-              <div className="flex items-center justify-between mb-6 md:mb-8">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <PieChartIcon size={18} className="text-blue-500" /> Status Kebekerjaan
-                </h3>
-              </div>
-              {!loading && <ReactECharts option={tracerStatusOption} style={{ height: window.innerWidth < 768 ? 300 : 350 }} />}
-           </div>
-           
-           <div className="lg:col-span-2 bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-soft relative overflow-hidden group">
-               <div className="flex items-center justify-between mb-6 md:mb-8">
-                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                    <BarChartIcon size={18} className="text-blue-500" /> Sebaran wilayah alumni (heatmap bar)
-                 </h3>
-                 <span className="hidden md:inline text-slate-400 text-xs font-medium">Klik provinsi untuk detail daerah</span>
-               </div>
-               {!loading && <ReactECharts option={regionHeatmapOption} style={{ height: window.innerWidth < 768 ? 300 : 350 }} />}
+      {/* SECTION 1: PIE CHART (Komposisi Data) */}
+      <section className="premium-card flex flex-col lg:flex-row gap-6 lg:gap-8">
+         {/* Left Side: Chart & Insight */}
+         <div className="w-full lg:w-2/3 flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+              <h3 className="font-black text-primary flex items-center gap-2">
+                 <PieChartIcon size={18} className="text-blue-500" /> Komposisi Data
+              </h3>
+              <select 
+                 value={activePieChart} 
+                 onChange={(e) => setActivePieChart(e.target.value)}
+                 className="w-full sm:w-64 bg-main border border-border-subtle rounded-xl px-3 py-2 text-sm font-bold text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer hover:bg-surface transition-colors"
+              >
+                 <option value="karir">Distribusi Karir (Tracer)</option>
+                 <option value="fakultas">Rasio Fakultas</option>
+              </select>
             </div>
-        </div>
-      </section>
 
-      {/* SECTION 2: STATISTIK MAHASISWA (INTERNAL) */}
-      <section className="space-y-6 pt-4">
-        <div className="flex items-center gap-3">
-           <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-           <h2 className="text-xl font-bold text-slate-800">Statistik Kemahasiswaan (Internal)</h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-           <KpiCard title="Lama Studi Rata-rata" value="4.2 Thn" trend="Optimal" icon={<Clock size={20} />} color="blue" subtitle="Target Akreditasi: < 4.5" />
-           <KpiCard title="Jumlah Alumni" value={data.alumni.length} trend={`+${data.alumni.filter(a => a.tahun_lulus === 2024).length}`} icon={<GraduationCap size={20} />} color="emerald" subtitle="Total database berjalan" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-            <div className="bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-soft">
-               <div className="flex justify-between items-start mb-6 md:mb-8">
-                  <div>
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                       <BarChartIcon size={18} className="text-red-500" /> Churn rate / DO per semester
-                    </h3>
-                    {data.stats.dropoutStats.some(v => v > 0) ? (
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <p className="text-2xl md:text-3xl font-black text-slate-900">{data.stats.churnRate}</p>
-                        <span className="text-[10px] md:text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">-0.6%</span>
-                      </div>
-                    ) : (
-                      <div className="mt-2 flex flex-col">
-                        <p className="text-lg md:text-xl font-bold text-slate-400">Belum Ada Data</p>
-                        <p className="text-[9px] md:text-[10px] text-slate-400 italic">Pastikan field "keterangan" & "semester" aktif</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="hidden sm:flex items-center gap-2">
-                    <div className="w-3 h-3 bg-red-400 rounded-sm"></div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Jumlah DO (Jiwa)</span>
-                  </div>
-               </div>
-               {!loading && data.stats.dropoutStats.some(v => v > 0) ? (
-                 <ReactECharts option={churnRateOption} style={{ height: window.innerWidth < 768 ? 300 : 350 }} />
+            <div className="flex-1 flex items-center justify-center min-h-[320px]">
+               {!loading ? (
+                  <ReactECharts 
+                    option={activePieChart === 'karir' ? tracerStatusOption : fakultasChartOption} 
+                    style={{ height: 320, width: '100%' }} 
+                  />
                ) : (
-                 <div className="h-[250px] md:h-[350px] bg-slate-50/50 rounded-2xl border border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-300 gap-2">
-                    <BarChartIcon size={48} className="opacity-10" />
-                    <p className="text-xs font-medium">Data Drop Out tidak ditemukan</p>
-                 </div>
+                  <div className="text-sm font-bold text-slate-400 animate-pulse">Memuat chart...</div>
                )}
             </div>
 
-            <div className="bg-white p-5 md:p-8 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-soft">
-               <h3 className="font-bold text-slate-800 mb-6 md:mb-8 flex items-center gap-2">
-                  <BarChartIcon size={18} className="text-blue-500" /> Demografi Gender per Angkatan
-               </h3>
-               {!loading && <ReactECharts option={genderOption} style={{ height: window.innerWidth < 768 ? 300 : 350 }} />}
+            {/* Insight Text */}
+            <div className="mt-4 p-3.5 bg-blue-500/5 border border-blue-500/10 rounded-xl flex items-start gap-3">
+               <div className="mt-0.5"><Info size={16} className="text-blue-500" /></div>
+               <p className="text-xs font-semibold text-secondary leading-relaxed">
+                 {getPieInsight()}
+               </p>
             </div>
-        </div>
+         </div>
+
+         {/* Right Side: Attributes */}
+         <div className="w-full lg:w-1/3 flex flex-col border-t lg:border-t-0 lg:border-l border-border-subtle pt-6 lg:pt-0 lg:pl-8">
+            <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+               <Layers size={14} className="text-secondary" /> 
+               {activePieChart === 'karir' ? 'Detail Status Karir' : 'Distribusi per Fakultas'}
+            </h4>
+            {!loading ? renderPieStats() : <div className="text-sm font-bold text-slate-400 animate-pulse">Memuat data...</div>}
+         </div>
+      </section>
+
+      {/* SECTION 2: BAR CHART (Distribusi & Tren) */}
+      <section className="premium-card flex flex-col lg:flex-row gap-6 lg:gap-8">
+         {/* Left Side: Chart & Insight */}
+         <div className="w-full lg:w-2/3 flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+              <h3 className="font-black text-primary flex items-center gap-2">
+                 <BarChartIcon size={18} className="text-indigo-500" /> Distribusi & Tren
+              </h3>
+              <select 
+                 value={activeBarChart} 
+                 onChange={(e) => setActiveBarChart(e.target.value)}
+                 className="w-full sm:w-64 bg-main border border-border-subtle rounded-xl px-3 py-2 text-sm font-bold text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer hover:bg-surface transition-colors"
+              >
+                 <option value="geografis">Sebaran Geografis Alumni</option>
+                 <option value="prodi">Rekapitulasi Program Studi</option>
+                 <option value="dropout">Analisis Drop Out (DO)</option>
+                 <option value="gender">Demografi Gender per Angkatan</option>
+              </select>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center min-h-[320px] w-full relative overflow-hidden">
+               {!loading ? (
+                  <ReactECharts 
+                    option={
+                      activeBarChart === 'geografis' ? regionHeatmapOption :
+                      activeBarChart === 'prodi' ? prodiChartOption :
+                      activeBarChart === 'dropout' ? churnRateOption :
+                      genderOption
+                    } 
+                    style={{ height: 350, width: '100%' }} 
+                  />
+               ) : (
+                  <div className="text-sm font-bold text-slate-400 animate-pulse">Memuat chart...</div>
+               )}
+            </div>
+
+            {/* Insight Text */}
+            <div className="mt-4 p-3.5 bg-indigo-500/5 border border-indigo-500/10 rounded-xl flex items-start gap-3">
+               <div className="mt-0.5"><Info size={16} className="text-indigo-500" /></div>
+               <p className="text-xs font-semibold text-secondary leading-relaxed">
+                 {getBarInsight()}
+               </p>
+            </div>
+         </div>
+
+         {/* Right Side: Attributes */}
+         <div className="w-full lg:w-1/3 flex flex-col border-t lg:border-t-0 lg:border-l border-border-subtle pt-6 lg:pt-0 lg:pl-8">
+            <h4 className="text-xs font-black text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+               <Layers size={14} className="text-secondary" /> 
+               {
+                 activeBarChart === 'geografis' ? 'Top Wilayah' :
+                 activeBarChart === 'prodi' ? 'Peringkat Prodi' :
+                 activeBarChart === 'dropout' ? 'Statistik Retensi' :
+                 'Rasio Keseluruhan'
+               }
+            </h4>
+            {!loading ? renderBarStats() : <div className="text-sm font-bold text-slate-400 animate-pulse">Memuat data...</div>}
+         </div>
       </section>
     </div>
   );
 }
 
-function KpiCard({ title, value, icon, color, trend, subtitle }) {
+function StatRow({ label, value, color, icon }) {
   const colors = {
-    blue: 'bg-blue-50 text-blue-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    purple: 'bg-purple-50 text-purple-600',
-    amber: 'bg-amber-50 text-amber-600',
-    red: 'bg-red-50 text-red-600'
+    blue: 'bg-blue-500/10 text-blue-500',
+    emerald: 'bg-emerald-500/10 text-emerald-500',
+    purple: 'bg-purple-500/10 text-purple-500',
+    amber: 'bg-amber-500/10 text-amber-500',
+    red: 'bg-red-500/10 text-red-500',
+    indigo: 'bg-indigo-500/10 text-indigo-500',
   };
 
   return (
-    <div className="bg-white p-5 md:p-7 rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-soft flex flex-col relative group transition-all hover:translate-y-[-4px]">
-      <div className="flex justify-between items-start mb-3 md:mb-4">
-        <div className={`p-2.5 md:p-3 rounded-xl md:rounded-2xl ${colors[color]}`}>
-          {icon}
-        </div>
-        <span className={`text-[10px] md:text-xs font-black px-2 py-1 rounded-lg ${trend.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : (trend.startsWith('-') ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400')}`}>
-          {trend}
-        </span>
-      </div>
-      <div>
-        <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</p>
-        <p className="text-2xl md:text-3xl font-black text-slate-900 mt-1">{value}</p>
-        <p className="text-[10px] md:text-[11px] text-slate-500 mt-1.5 md:mt-2 font-medium">{subtitle}</p>
-      </div>
+    <div className="flex items-center justify-between p-3 rounded-xl bg-surface border border-border-subtle hover:border-brand-primary/30 transition-colors">
+       <div className="flex items-center gap-3 w-3/4">
+          <div className={`p-2 rounded-lg ${colors[color] || colors.blue}`}>
+             {icon}
+          </div>
+          <span className="text-xs font-bold text-secondary line-clamp-1 flex-1 truncate">{label}</span>
+       </div>
+       <span className="text-sm font-black text-primary ml-2">{value}</span>
     </div>
-  );
+  )
 }

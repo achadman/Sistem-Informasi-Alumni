@@ -50,11 +50,15 @@ export default function AlumniList() {
     gender: '',
     agama: '',
     keterangan: '',
-    golongan_darah: ''
+    golongan_darah: '',
+    fakultasId: '',
+    prodi: ''
   });
   const [provinces, setProvinces] = useState([]);
   const [regencies, setRegencies] = useState([]);
   const [loadingRegions, setLoadingRegions] = useState(false);
+  const [fakultasList, setFakultasList] = useState([]);
+  const [prodiList, setProdiList] = useState([]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -63,12 +67,19 @@ export default function AlumniList() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  // Fetch Provinces on Mount
+  // Fetch Start Data on Mount
   useEffect(() => {
-    fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
-      .then(res => res.json())
+    pb.collection('provinces').getFullList({ sort: 'name' })
       .then(data => setProvinces(data))
       .catch(err => console.error("Gagal ambil provinsi:", err));
+      
+    Promise.all([
+      pb.collection('fakultas').getFullList({ sort: 'nama' }),
+      pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama' })
+    ]).then(([fData, pData]) => {
+      setFakultasList(fData);
+      setProdiList(pData);
+    }).catch(err => console.error(err));
   }, []);
 
   // Fetch Regencies when Provincia filter changes
@@ -77,8 +88,10 @@ export default function AlumniList() {
       const selectedProv = provinces.find(p => p.name === filters.provinsi);
       if (selectedProv) {
         setLoadingRegions(true);
-        fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProv.id}.json`)
-          .then(res => res.json())
+        pb.collection('regencies').getFullList({
+          filter: `parent_id = "${selectedProv.id_wilayah}"`,
+          sort: 'name'
+        })
           .then(data => setRegencies(data))
           .catch(err => console.error(err))
           .finally(() => setLoadingRegions(false));
@@ -112,6 +125,20 @@ export default function AlumniList() {
       if (filters.agama) filterParts.push(`agama ~ "${filters.agama}"`);
       if (filters.keterangan) filterParts.push(`keterangan = "${filters.keterangan}"`);
       if (filters.golongan_darah) filterParts.push(`golongan_darah = "${filters.golongan_darah}"`);
+      
+      if (filters.prodi) {
+        filterParts.push(`prodi = "${filters.prodi}"`);
+      } else if (filters.fakultasId) {
+        // If only fakultas is selected, find all prodi text belonging to it
+        const childProdis = prodiList.filter(p => p.fakultas_id === filters.fakultasId);
+        if (childProdis.length > 0) {
+          const prodiNames = childProdis.map(p => `prodi = "${p.nama}"`);
+          filterParts.push(`(${prodiNames.join(' || ')})`);
+        } else {
+          // If the fakultas has no prodi yet, just match none
+          filterParts.push(`prodi = "___NONE___"`);
+        }
+      }
 
       const filterString = filterParts.join(' && ');
       const pageToFetch = Math.max(1, currentPage);
@@ -172,7 +199,9 @@ export default function AlumniList() {
       gender: '',
       agama: '',
       keterangan: '',
-      golongan_darah: ''
+      golongan_darah: '',
+      fakultasId: '',
+      prodi: ''
     });
     setSearchQuery('');
     setCurrentPage(1);
@@ -185,21 +214,23 @@ export default function AlumniList() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-4rem)] -mt-2 -mb-8 animate-in fade-in duration-500">
+      {/* Top Fixed Section */}
+      <div className="flex-none space-y-3 pb-3">
       {/* Header Area */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Database Alumni</h1>
-          <p className="text-slate-500 mt-1">Kelola dan pantau data alumni institusi secara real-time.</p>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">Database Alumni</h1>
+          <p className="text-slate-400 text-xs mt-0.5 font-medium">Kelola dan pantau data alumni institusi secara real-time.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
             <input 
               type="text" 
               placeholder="Cari nama atau NIM..." 
-              className="pl-12 pr-6 py-3.5 bg-white rounded-2xl border border-slate-100 shadow-sm w-full md:w-80 outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all text-sm"
+              className="pl-10 pr-4 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm w-full md:w-64 outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all text-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -207,18 +238,18 @@ export default function AlumniList() {
           
           <button 
             onClick={() => setIsFilterVisible(!isFilterVisible)}
-            className={`p-3.5 rounded-2xl border shadow-sm transition-all relative ${isFilterVisible ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-slate-500 border-slate-100 hover:text-brand-primary hover:bg-brand-light'}`}
+            className={`p-2.5 rounded-xl border shadow-sm transition-all relative ${isFilterVisible ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-slate-500 border-slate-100 hover:text-brand-primary hover:bg-brand-light'}`}
           >
-            <Filter size={20} />
+            <Filter size={16} />
             {activeFiltersCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
                 {activeFiltersCount}
               </span>
             )}
           </button>
           
-          <button className="p-3.5 bg-white rounded-2xl border border-slate-100 shadow-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-            <Download size={20} />
+          <button className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+            <Download size={16} />
           </button>
 
           <button 
@@ -226,9 +257,9 @@ export default function AlumniList() {
               setEditData(null);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-6 py-3.5 bg-brand-primary text-white rounded-2xl font-bold shadow-xl shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95 text-sm"
           >
-            <Plus size={20} />
+            <Plus size={16} />
             <span className="hidden md:inline">Tambah Alumni</span>
           </button>
         </div>
@@ -260,7 +291,38 @@ export default function AlumniList() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Fakultas</label>
+                  <div className="relative">
+                    <select 
+                      value={filters.fakultasId}
+                      onChange={(e) => setFilters({...filters, fakultasId: e.target.value, prodi: ''})}
+                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all text-sm appearance-none font-medium"
+                    >
+                      <option value="">Semua Fakultas</option>
+                      {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Prodi</label>
+                  <div className="relative">
+                    <select 
+                      value={filters.prodi}
+                      onChange={(e) => setFilters({...filters, prodi: e.target.value})}
+                      disabled={!filters.fakultasId}
+                      className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all text-sm appearance-none font-medium disabled:opacity-50"
+                    >
+                      <option value="">Semua Prodi</option>
+                      {prodiList.filter(p => p.fakultas_id === filters.fakultasId).map(p => <option key={p.id} value={p.nama}>{p.nama}</option>)}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Provinsi</label>
                   <div className="relative">
@@ -409,7 +471,7 @@ export default function AlumniList() {
       </AnimatePresence>
 
       {/* Stats Quick Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {(() => {
           const currentYear = new Date().getFullYear();
           const lastYear = currentYear - 1;
@@ -441,12 +503,13 @@ export default function AlumniList() {
           );
         })()}
       </div>
+      </div>
 
       {/* Table Container */}
-      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
+      <div className="flex-1 bg-white rounded-[2rem] border border-slate-100 shadow-soft flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full text-left relative">
+            <thead className="sticky top-0 bg-white z-20 shadow-sm">
               <tr className="border-b border-slate-50">
                 <th className="px-8 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider w-16">No.</th>
                 <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Alumni</th>
@@ -634,14 +697,14 @@ export default function AlumniList() {
 
 function StatCard({ title, value, trend, icon }) {
   return (
-    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-soft flex items-center gap-6">
-      <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl shadow-inner">
-        {icon}
+    <div className="bg-white px-4 py-3 rounded-2xl border border-slate-100 shadow-soft flex items-center gap-4">
+      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shadow-inner flex-shrink-0">
+        {React.cloneElement(icon, { size: 18 })}
       </div>
       <div>
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</p>
-        <p className="text-2xl font-black text-slate-900 mt-0.5">{value}</p>
-        <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-tighter">{trend}</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{title}</p>
+        <p className="text-xl font-black text-slate-900 mt-0.5 leading-none">{value}</p>
+        <p className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-tighter">{trend}</p>
       </div>
     </div>
   );

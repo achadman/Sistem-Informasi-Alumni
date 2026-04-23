@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { pb } from '../lib/pb';
 import L from 'leaflet';
 import { getCoordinates } from '../lib/geoData';
@@ -42,13 +43,28 @@ export default function AdminMap() {
     const fetchAlumni = async () => {
       try {
         // Disable autoCancel to prevent request being aborted on fast re-renders
-        const records = await pb.collection('alumni').getFullList({ autoCancel: false });
+        // Use 'fields' to dramatically slice data payload payload bytes (Data Stripping)
+        const records = await pb.collection('alumni').getFullList({ 
+          autoCancel: false,
+          fields: 'id,nama,nim,provinsi,kota,status_kerja,tahun_lulus'
+        });
         
-        // Map records to include coordinates
-        const processed = records.map(a => ({
-          ...a,
-          coords: getCoordinates(a.provinsi, a.kota)
-        }));
+        // Map records to include coordinates and micro jitter
+        const processed = records.map(a => {
+          const rawCoords = getCoordinates(a.provinsi, a.kota);
+          
+          // Inject micro-jitter (~2.5km scatter) across exact same cities
+          const jitterLat = (Math.random() - 0.5) * 0.025;
+          const jitterLng = (Math.random() - 0.5) * 0.025;
+          
+          return {
+            ...a,
+            coords: {
+              lat: rawCoords.lat + jitterLat,
+              lng: rawCoords.lng + jitterLng
+            }
+          };
+        });
         
         setAlumni(processed);
       } catch (err) {
@@ -131,12 +147,26 @@ export default function AdminMap() {
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
                 
-                {filteredAlumni.map(person => (
-                  <Marker 
-                    key={person.id} 
-                    position={[person.coords.lat, person.coords.lng]}
-                  >
-                    <Popup className="custom-popup">
+                <MarkerClusterGroup 
+                  chunkedLoading
+                  iconCreateFunction={(cluster) => {
+                    return L.divIcon({
+                      html: `<div class="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2 px-5 py-2 bg-blue-600 text-white rounded-full flex gap-1.5 items-center justify-center shadow-xl shadow-blue-500/40 border-[3px] border-white whitespace-nowrap w-max backdrop-blur-sm">
+                               <span class="text-blue-100 text-[9px] uppercase font-black tracking-widest mt-0.5">Sekitar</span>
+                               <span class="text-sm font-black">${cluster.getChildCount()}</span>
+                               <span class="text-blue-100 text-[9px] uppercase font-black tracking-widest mt-0.5">Alumni</span>
+                             </div>`,
+                      className: 'custom-marker-cluster bg-transparent border-0',
+                      iconSize: L.point(0, 0)
+                    });
+                  }}
+                >
+                  {filteredAlumni.map(person => (
+                    <Marker 
+                      key={person.id} 
+                      position={[person.coords.lat, person.coords.lng]}
+                    >
+                      <Popup className="custom-popup">
                       <div className="p-3 min-w-[200px]">
                         <div className="flex items-center gap-3 mb-3">
                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
@@ -173,6 +203,7 @@ export default function AdminMap() {
                     </Popup>
                   </Marker>
                 ))}
+                </MarkerClusterGroup>
               </MapContainer>
             </div>
 

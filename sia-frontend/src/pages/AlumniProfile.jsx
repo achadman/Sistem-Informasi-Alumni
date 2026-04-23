@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { 
   Briefcase, Building2, MapPin, Map,
-  User, Calendar, Loader2, BookOpen, Edit3, X, Camera, Save
+  User, Calendar, Loader2, BookOpen, Edit3, X, Camera, Save,
+  Lock, KeyRound, Eye, EyeOff, ShieldAlert, CheckCircle2
 } from 'lucide-react';
 import { pb } from '../lib/pb';
 import { motion, AnimatePresence } from 'framer-motion';
+import RegionSelect from '../components/RegionSelect';
 
 export default function AlumniProfile() {
   const { user } = useAuthStore();
@@ -22,6 +24,18 @@ export default function AlumniProfile() {
   const [formData, setFormData] = useState({});
   const [previewImage, setPreviewImage] = useState(null);
   const fileInputRef = useRef(null);
+
+  // States for Password Modal
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [passwords, setPasswords] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   useEffect(() => {
     if (isAdmin) {
@@ -86,7 +100,11 @@ export default function AlumniProfile() {
       dataToSave.append('keterangan', formData.keterangan || '');
       dataToSave.append('gender', formData.gender || '');
       dataToSave.append('provinsi', formData.provinsi || '');
-      dataToSave.append('kota', formData.kota || '');
+      dataToSave.append('kota_kabupaten', formData.kota_kabupaten || '');
+      dataToSave.append('kecamatan', formData.kecamatan || '');
+      dataToSave.append('kelurahan', formData.kelurahan || '');
+      dataToSave.append('rt', formData.rt || '');
+      dataToSave.append('rw', formData.rw || '');
       dataToSave.append('agama', formData.agama || '');
       
       // If photo was changed, it's a File object, else it might be string (existing PB filename)
@@ -106,6 +124,54 @@ export default function AlumniProfile() {
       alert('Gagal menyimpan profil: ' + (err.message || 'Error tidak diketahui'));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+    
+    // Strict Validation Rule: Min 10 chars, 1 uppercase, 1 lowercase, 1 number, 1 symbol
+    const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{10,}$/;
+    
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setPwdError("Konfirmasi sandi tidak cocok. Pastikan ketikan Anda sama persis.");
+      return;
+    }
+
+    if (!pwdRegex.test(passwords.newPassword)) {
+      setPwdError("Sandi terlalu lemah! Wajib 10 Karakter, 1 Huruf Besar, 1 Huruf Kecil, 1 Angka, dan 1 Simbol Khusus (@, !, dll).");
+      return;
+    }
+
+    if (passwords.newPassword === passwords.oldPassword) {
+      setPwdError("Sandi baru tidak boleh persis sama dengan sandi sementara saat ini.");
+      return;
+    }
+
+    setPwdLoading(true);
+    try {
+      await pb.collection('users').update(user.id, {
+        oldPassword: passwords.oldPassword,
+        password: passwords.newPassword,
+        passwordConfirm: passwords.confirmPassword,
+      });
+      setPwdSuccess("Berhasil! Kata sandi telah diperbarui menjadi sandi lapis baja yang terkuat.");
+      setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => {
+        setIsPasswordModalOpen(false);
+        setPwdSuccess('');
+      }, 3000);
+    } catch (err) {
+      console.error("Password update error:", err);
+      if (err.response?.data?.oldPassword) {
+        setPwdError("Sandi lama yang Anda masukkan salah.");
+      } else {
+        setPwdError("Sistem gagal mengubah sandi: " + (err.message || 'Error tidak diketahui. Verifikasi Token mungkin sudah kedaluwarsa.'));
+      }
+    } finally {
+      setPwdLoading(false);
     }
   };
 
@@ -149,13 +215,26 @@ export default function AlumniProfile() {
           <div className="h-40 bg-gradient-to-r from-blue-600 to-indigo-600 relative overflow-hidden group">
              <div className="absolute inset-0 bg-white/10 opacity-30 blur-2xl"></div>
              
-             {/* Edit Button overlaps banner */}
-             <button 
-               onClick={handleOpenEdit}
-               className="absolute top-6 right-6 bg-white/20 hover:bg-white text-white hover:text-brand-primary backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 transition-all active:scale-95 border border-white/30"
-             >
-               <Edit3 size={16} /> Edit Profil
-             </button>
+             {/* Control Buttons overlap banner */}
+             <div className="absolute top-6 right-8 flex gap-3">
+               <button 
+                 onClick={() => {
+                   setPasswords({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                   setPwdError('');
+                   setPwdSuccess('');
+                   setIsPasswordModalOpen(true);
+                 }}
+                 className="bg-white/20 hover:bg-slate-900 text-white backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-white/30"
+               >
+                 <Lock size={16} /> Keamanan Sandi
+               </button>
+               <button 
+                 onClick={handleOpenEdit}
+                 className="bg-white/20 hover:bg-white text-white hover:text-brand-primary backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 transition-all hover:scale-105 active:scale-95 border border-white/30"
+               >
+                 <Edit3 size={16} /> Edit Profil
+               </button>
+             </div>
           </div>
 
           {/* Floating Avatar - Moved outside the banner so it doesn't get clipped */}
@@ -216,7 +295,22 @@ export default function AlumniProfile() {
                  <BiodataItem 
                    icon={<MapPin />} 
                    label="Kota/Kabupaten" 
-                   value={alumniData.kota || '-'} 
+                   value={alumniData.kota_kabupaten || alumniData.kota || '-'} 
+                 />
+                 <BiodataItem 
+                   icon={<MapPin />} 
+                   label="Kecamatan" 
+                   value={alumniData.kecamatan || '-'} 
+                 />
+                 <BiodataItem 
+                   icon={<MapPin />} 
+                   label="Kelurahan/Desa" 
+                   value={alumniData.kelurahan || '-'} 
+                 />
+                 <BiodataItem 
+                   icon={<MapPin />} 
+                   label="RT / RW" 
+                   value={(alumniData.rt || '-') + ' / ' + (alumniData.rw || '-')} 
                  />
                  {alumniData.agama && (
                    <BiodataItem 
@@ -316,50 +410,38 @@ export default function AlumniProfile() {
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Status Utama Karir</label>
-                      <select 
-                        value={formData.status_kerja || ''}
-                        onChange={(e) => setFormData({...formData, status_kerja: e.target.value})}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
-                      >
-                        <option value="">Pilih Status</option>
-                        <option value="Bekerja">Bekerja</option>
-                        <option value="Wiraswasta">Wiraswasta / Usaha</option>
-                        <option value="Melanjutkan Studi">Melanjutkan Studi (Kuliah)</option>
-                        <option value="Belum Bekerja">Belum Bekerja</option>
-                      </select>
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Status Utama Karir</label>
+                       <select 
+                         value={formData.status_kerja || ''}
+                         onChange={(e) => setFormData({...formData, status_kerja: e.target.value})}
+                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
+                       >
+                         <option value="">Pilih Status</option>
+                         <option value="Bekerja">Bekerja</option>
+                         <option value="Wiraswasta">Wiraswasta / Usaha</option>
+                         <option value="Melanjutkan Studi">Melanjutkan Studi (Kuliah)</option>
+                         <option value="Belum Bekerja">Belum Bekerja</option>
+                       </select>
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Afiliasi / Instansi Saat Ini</label>
-                      <input 
-                        type="text" 
-                        value={formData.np || ''}
-                        onChange={(e) => setFormData({...formData, np: e.target.value})}
-                        placeholder="Contoh: PT Bangun Negeri atau UGM"
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
-                      />
+                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Afiliasi / Instansi Saat Ini</label>
+                       <input 
+                         type="text" 
+                         value={formData.np || ''}
+                         onChange={(e) => setFormData({...formData, np: e.target.value})}
+                         placeholder="Contoh: PT Bangun Negeri atau UGM"
+                         className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
+                       />
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Provinsi</label>
-                      <input 
-                        type="text" 
-                        value={formData.provinsi || ''}
-                        onChange={(e) => setFormData({...formData, provinsi: e.target.value})}
-                        placeholder="Provinsi Domisili"
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Kota / Kabupaten</label>
-                      <input 
-                        type="text" 
-                        value={formData.kota || ''}
-                        onChange={(e) => setFormData({...formData, kota: e.target.value})}
-                        placeholder="Kota Domisili"
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm font-medium"
-                      />
+                    <div className="md:col-span-2 space-y-4 py-2 border-t border-slate-100 mt-2">
+                       <label className="text-[10px] font-bold text-brand-primary uppercase tracking-widest ml-1">Lokasi Domisili</label>
+                       <RegionSelect 
+                         formData={formData}
+                         handleChange={(e) => setFormData({...formData, [e.target.name]: e.target.value})}
+                         isIndonesia={true}
+                       />
                     </div>
                     
                     <div className="space-y-1.5">
@@ -407,6 +489,148 @@ export default function AlumniProfile() {
                   {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                   {saving ? 'Menyimpan...' : 'Simpan Profil'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PASSWORD MODAL */}
+      <AnimatePresence>
+        {isPasswordModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !pwdLoading && setIsPasswordModalOpen(false)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden my-auto border border-slate-100 flex flex-col"
+            >
+              <div className="flex items-center justify-between px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                  <div className="p-2 bg-slate-800 text-white rounded-xl shadow-lg shadow-slate-900/20"><KeyRound size={20} /></div>
+                  Sistem Sandi Militer
+                </h2>
+                <button 
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  disabled={pwdLoading}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all disabled:opacity-50"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8">
+                {pwdError && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl flex items-start gap-3 shadow-sm"
+                  >
+                    <ShieldAlert size={18} className="mt-0.5 flex-shrink-0 text-red-500" />
+                    <p className="text-sm font-bold leading-snug">{pwdError}</p>
+                  </motion.div>
+                )}
+                {pwdSuccess && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl flex items-start gap-3 shadow-sm"
+                  >
+                    <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0 text-emerald-500" />
+                    <p className="text-sm font-bold leading-snug">{pwdSuccess}</p>
+                  </motion.div>
+                )}
+
+                {!pwdSuccess && (
+                  <form id="pwdForm" onSubmit={handlePasswordSubmit} className="space-y-6">
+                    
+                    <div className="space-y-1.5 focus-within:text-brand-primary transition-colors text-slate-400">
+                      <label className="text-[10px] font-black uppercase tracking-widest ml-1">Sandi Usang Anda Saat Ini</label>
+                      <div className="relative group">
+                         <div className="absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-brand-primary text-slate-400 transition-colors">
+                           <Lock size={18} />
+                         </div>
+                         <input 
+                           type={showPwd ? "text" : "password"} 
+                           required
+                           value={passwords.oldPassword}
+                           onChange={e => setPasswords({...passwords, oldPassword: e.target.value})}
+                           className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all font-medium"
+                           placeholder="Ketikkan sandi saat ini..."
+                         />
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-50/80 -mx-8 px-8 py-6 border-y border-slate-100 space-y-5">
+                      <div className="space-y-1.5 focus-within:text-brand-primary transition-colors text-slate-400">
+                        <label className="text-[10px] font-black uppercase tracking-widest ml-1">Sandi Super Baru</label>
+                        <div className="relative group">
+                           <div className="absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-brand-primary text-slate-400 transition-colors">
+                             <KeyRound size={18} />
+                           </div>
+                           <input 
+                             type={showPwd ? "text" : "password"} 
+                             required
+                             value={passwords.newPassword}
+                             onChange={e => setPasswords({...passwords, newPassword: e.target.value})}
+                             className="w-full pl-12 pr-12 py-3.5 bg-white border border-slate-200 shadow-sm rounded-2xl text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all font-bold"
+                             placeholder="Contoh: K0d3#Aman@123"
+                           />
+                           <button 
+                             type="button"
+                             onClick={() => setShowPwd(!showPwd)}
+                             className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                           >
+                             {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                           </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 focus-within:text-brand-primary transition-colors text-slate-400">
+                        <label className="text-[10px] font-black uppercase tracking-widest ml-1">Kukuhkan Sandi Baru</label>
+                        <div className="relative group">
+                           <div className="absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-brand-primary text-slate-400 transition-colors">
+                             <CheckCircle2 size={18} />
+                           </div>
+                           <input 
+                             type={showPwd ? "text" : "password"} 
+                             required
+                             value={passwords.confirmPassword}
+                             onChange={e => setPasswords({...passwords, confirmPassword: e.target.value})}
+                             className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 shadow-sm rounded-2xl text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all font-bold"
+                             placeholder="Ulangi kembali sandi di atas persis"
+                           />
+                        </div>
+                      </div>
+                      
+                      <div className="text-[10px] text-slate-500 flex flex-col gap-1 px-2 border-l-[3px] border-amber-400 ml-1">
+                        <span className="font-bold text-slate-700 mb-1">Rincian Doktrin 5 Syarat Tangguh:</span>
+                        <p>1. Memiliki struktur memanjang minimal <span className="font-bold text-slate-800">10 Karakter</span>.</p>
+                        <p>2. Harus menyematkan <span className="font-bold text-slate-800">Huruf Kapital Besar (A-Z)</span>.</p>
+                        <p>3. Harus menyematkan <span className="font-bold text-slate-800">Huruf Kecil Regular (a-z)</span>.</p>
+                        <p>4. Harus menyematkan <span className="font-bold text-slate-800">Angka Denominasi (0-9)</span>.</p>
+                        <p>5. Mustahil lolos tanpa <span className="font-bold text-slate-800">Simbol Spesial (misal !, #, $)</span>.</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2">
+                       <button 
+                         type="submit"
+                         disabled={pwdLoading}
+                         className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-slate-900/20 uppercase tracking-wider"
+                       >
+                         {pwdLoading ? <Loader2 className="animate-spin" size={18} /> : <ShieldAlert size={18} />}
+                         {pwdLoading ? 'Memproses Enkripsi Sandi...' : 'Suntikkan Keamanan Lapis Baja'}
+                       </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </motion.div>
           </div>

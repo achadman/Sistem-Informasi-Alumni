@@ -1,126 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import AutocompleteSearch from './AutocompleteSearch';
 
 export default function RegionSelect({ formData, handleChange, isIndonesia }) {
-  const [provinces, setProvinces] = useState([]);
-  const [regencies, setRegencies] = useState([]);
-  const [districts, setDistricts] = useState([]);
-  const [villages, setVillages] = useState([]);
-
-  const [loadingProv, setLoadingProv] = useState(false);
-  const [loadingReg, setLoadingReg] = useState(false);
-  const [loadingDist, setLoadingDist] = useState(false);
-  const [loadingVill, setLoadingVill] = useState(false);
-
-  // States to hold the selected IDs from API to fetch the next levels
+  // We maintain local IDs for cascading filters 
+  // (Note: AddAlumniModal only saves names to db, but we need IDs to query Pocketbase correctly)
   const [selectedProvId, setSelectedProvId] = useState('');
   const [selectedRegId, setSelectedRegId] = useState('');
   const [selectedDistId, setSelectedDistId] = useState('');
 
-  // 1. Fetch Provinces
-  useEffect(() => {
-    if (isIndonesia) {
-      setLoadingProv(true);
-      fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
-        .then(res => res.json())
-        .then(data => setProvinces(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoadingProv(false));
+  const handleProvSelect = (item) => {
+    if (!item) {
+      setSelectedProvId('');
+      setSelectedRegId('');
+      setSelectedDistId('');
+      handleChange({ target: { name: 'provinsi', value: '' } });
+      handleChange({ target: { name: 'kota_kabupaten', value: '' } });
+      handleChange({ target: { name: 'kecamatan', value: '' } });
+      handleChange({ target: { name: 'kelurahan', value: '' } });
+      return;
     }
-  }, [isIndonesia]);
-
-  // 2. Fetch Regencies when Province changes
-  useEffect(() => {
-    if (selectedProvId) {
-      setLoadingReg(true);
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${selectedProvId}.json`)
-        .then(res => res.json())
-        .then(data => setRegencies(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoadingReg(false));
-      
-      // Reset child regions when parent changes
-      setDistricts([]);
-      setVillages([]);
-    }
-  }, [selectedProvId]);
-
-  // 3. Fetch Districts when Regency changes
-  useEffect(() => {
-    if (selectedRegId) {
-      setLoadingDist(true);
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/districts/${selectedRegId}.json`)
-        .then(res => res.json())
-        .then(data => setDistricts(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoadingDist(false));
-      
-      setVillages([]);
-    }
-  }, [selectedRegId]);
-
-  // 4. Fetch Villages when District changes
-  useEffect(() => {
-    if (selectedDistId) {
-      setLoadingVill(true);
-      fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/villages/${selectedDistId}.json`)
-        .then(res => res.json())
-        .then(data => setVillages(data))
-        .catch(err => console.error(err))
-        .finally(() => setLoadingVill(false));
-    }
-  }, [selectedDistId]);
-
-  // Handlers to update the form data with NAMES and internal states with IDs
-  const handleProvChange = (e) => {
-    const selectedOption = e.target.options[e.target.selectedIndex];
-    const id = selectedOption.getAttribute('data-id');
-    const name = selectedOption.value;
     
-    setSelectedProvId(id);
+    setSelectedProvId(item.id_wilayah);
     setSelectedRegId('');
     setSelectedDistId('');
 
-    // Update parent formData
-    handleChange({ target: { name: 'provinsi', value: name } });
-    handleChange({ target: { name: 'kota', value: '' } });
+    handleChange({ target: { name: 'provinsi', value: item.name } });
+    handleChange({ target: { name: 'kota_kabupaten', value: '' } });
     handleChange({ target: { name: 'kecamatan', value: '' } });
     handleChange({ target: { name: 'kelurahan', value: '' } });
   };
 
-  const handleRegChange = (e) => {
-    const selectedOption = e.target.options[e.target.selectedIndex];
-    const id = selectedOption.getAttribute('data-id');
-    const name = selectedOption.value;
-    
-    setSelectedRegId(id);
+  const handleRegSelect = (item) => {
+    if (!item) {
+      setSelectedRegId('');
+      setSelectedDistId('');
+      handleChange({ target: { name: 'kota_kabupaten', value: '' } });
+      handleChange({ target: { name: 'kecamatan', value: '' } });
+      handleChange({ target: { name: 'kelurahan', value: '' } });
+      return;
+    }
+
+    setSelectedRegId(item.id_wilayah);
     setSelectedDistId('');
 
-    handleChange({ target: { name: 'kota', value: name } });
+    handleChange({ target: { name: 'kota_kabupaten', value: item.name } });
     handleChange({ target: { name: 'kecamatan', value: '' } });
     handleChange({ target: { name: 'kelurahan', value: '' } });
   };
 
-  const handleDistChange = (e) => {
-    const selectedOption = e.target.options[e.target.selectedIndex];
-    const id = selectedOption.getAttribute('data-id');
-    const name = selectedOption.value;
-    
-    setSelectedDistId(id);
+  const handleDistSelect = (item) => {
+    if (!item) {
+      setSelectedDistId('');
+      handleChange({ target: { name: 'kecamatan', value: '' } });
+      handleChange({ target: { name: 'kelurahan', value: '' } });
+      return;
+    }
 
-    handleChange({ target: { name: 'kecamatan', value: name } });
+    setSelectedDistId(item.id_wilayah);
+    handleChange({ target: { name: 'kecamatan', value: item.name } });
     handleChange({ target: { name: 'kelurahan', value: '' } });
   };
 
-  const handleVillChange = (e) => {
-    handleChange(e);
+  const handleVillSelect = (item) => {
+    if (!item) {
+      handleChange({ target: { name: 'kelurahan', value: '' } });
+      return;
+    }
+    handleChange({ target: { name: 'kelurahan', value: item.name } });
+    
+    // Auto clear RT/RW when village changes to encourage re-eval
+    handleChange({ target: { name: 'rt', value: '' } });
+    handleChange({ target: { name: 'rw', value: '' } });
   };
 
   if (!isIndonesia) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-2 mb-4 w-full">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-2 mb-4 w-full animate-in fade-in">
         <TextInput name="provinsi" label="Provinsi / State" value={formData.provinsi} onChange={handleChange} />
-        <TextInput name="kota" label="Kota / Regency" value={formData.kota} onChange={handleChange} />
+        <TextInput name="kota_kabupaten" label="Kota / Regency" value={formData.kota_kabupaten} onChange={handleChange} />
         <TextInput name="kecamatan" label="Kecamatan / District" value={formData.kecamatan} onChange={handleChange} />
         <TextInput name="kelurahan" label="Kelurahan / Sub-district" value={formData.kelurahan} onChange={handleChange} />
       </div>
@@ -128,76 +86,62 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-          Provinsi {loadingProv && <Loader2 size={10} className="animate-spin" />}
-        </label>
-        <select 
-          name="provinsi" 
-          value={formData.provinsi} 
-          onChange={handleProvChange}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400 bg-white"
-        >
-          <option value="">Pilih Provinsi</option>
-          {provinces.map(prov => (
-            <option key={prov.id} data-id={prov.id} value={prov.name}>{prov.name}</option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-4 w-full animate-in fade-in">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        
+        {/* Provinsi */}
+        <div className="w-full">
+           <AutocompleteSearch 
+             label="Provinsi"
+             collection="provinces"
+             placeholder="Cari atau pilih provinsi..."
+             valueDisplay={formData.provinsi}
+             onSelect={handleProvSelect}
+           />
+        </div>
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-          Kota/Kab {loadingReg && <Loader2 size={10} className="animate-spin" />}
-        </label>
-        <select 
-          name="kota" 
-          value={formData.kota} 
-          onChange={handleRegChange}
-          disabled={!selectedProvId}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-        >
-          <option value="">Pilih Kota/Kab</option>
-          {regencies.map(reg => (
-            <option key={reg.id} data-id={reg.id} value={reg.name}>{reg.name}</option>
-          ))}
-        </select>
-      </div>
+        {/* Kota/Kab */}
+        <div className="w-full">
+           <AutocompleteSearch 
+             label="Kota/Kab"
+             collection="regencies"
+             placeholder="Cari atau pilih kota/kab..."
+             disabled={!selectedProvId && !formData.provinsi}
+             extraFilter={selectedProvId ? `parent_id = "${selectedProvId}"` : ''}
+             valueDisplay={formData.kota_kabupaten}
+             onSelect={handleRegSelect}
+           />
+           {!formData.provinsi && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih provinsi terlebih dahulu</p>}
+        </div>
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-          Kecamatan {loadingDist && <Loader2 size={10} className="animate-spin" />}
-        </label>
-        <select 
-          name="kecamatan" 
-          value={formData.kecamatan || ''} 
-          onChange={handleDistChange}
-          disabled={!selectedRegId}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-        >
-          <option value="">Pilih Kecamatan</option>
-          {districts.map(dist => (
-            <option key={dist.id} data-id={dist.id} value={dist.name}>{dist.name}</option>
-          ))}
-        </select>
-      </div>
+        {/* Kecamatan */}
+        <div className="w-full">
+           <AutocompleteSearch 
+             label="Kecamatan"
+             collection="districts"
+             placeholder="Cari atau pilih kecamatan..."
+             disabled={!selectedRegId && !formData.kota_kabupaten}
+             extraFilter={selectedRegId ? `parent_id = "${selectedRegId}"` : ''}
+             valueDisplay={formData.kecamatan}
+             onSelect={handleDistSelect}
+           />
+           {!formData.kota_kabupaten && formData.provinsi && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih kota terlebih dahulu</p>}
+        </div>
 
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-          Kelurahan/Desa {loadingVill && <Loader2 size={10} className="animate-spin" />}
-        </label>
-        <select 
-          name="kelurahan" 
-          value={formData.kelurahan} 
-          onChange={handleVillChange}
-          disabled={!selectedDistId}
-          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-        >
-          <option value="">Pilih Kelurahan</option>
-          {villages.map(vill => (
-            <option key={vill.id} value={vill.name}>{vill.name}</option>
-          ))}
-        </select>
+        {/* Kelurahan */}
+        <div className="w-full">
+           <AutocompleteSearch 
+             label="Kelurahan/Desa"
+             collection="villages"
+             placeholder="Cari atau pilih kelurahan/desa..."
+             disabled={!selectedDistId && !formData.kecamatan}
+             extraFilter={selectedDistId ? `parent_id = "${selectedDistId}"` : ''}
+             valueDisplay={formData.kelurahan}
+             onSelect={handleVillSelect}
+           />
+           {!formData.kecamatan && formData.kota_kabupaten && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih kecamatan terlebih dahulu</p>}
+        </div>
+        
       </div>
     </div>
   );
@@ -205,13 +149,13 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
 
 function TextInput({ name, label, value, onChange }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{label}</label>
+    <div className="space-y-1.5 w-full">
+      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
       <input 
         name={name} 
         value={value || ''} 
         onChange={onChange} 
-        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400" 
+        className="w-full px-4 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-400 text-sm font-medium transition-all bg-slate-50" 
       />
     </div>
   );

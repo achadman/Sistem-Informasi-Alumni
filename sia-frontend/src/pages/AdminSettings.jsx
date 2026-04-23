@@ -25,12 +25,13 @@ export default function AdminSettings() {
     alamat: '',
     negara: 'Indonesia',
     provinsi: '',
-    kota: '',
+    kota_kabupaten: '',
     kecamatan: '',
     kelurahan: '',
     rw: '',
     rt: ''
   });
+  const [savedInstData, setSavedInstData] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
 
@@ -56,7 +57,7 @@ export default function AdminSettings() {
       const instRec = await pb.collection('institution_profile').getFirstListItem('').catch(() => null);
       if (instRec) {
         setInstId(instRec.id);
-        setInstData({
+        const loadedInst = {
           nama: instRec.nama || '',
           email: instRec.email || '',
           no_hp: instRec.no_hp || '',
@@ -64,12 +65,14 @@ export default function AdminSettings() {
           alamat: instRec.alamat || '',
           negara: 'Indonesia',
           provinsi: instRec.provinsi || '',
-          kota: instRec.kota || '',
+          kota_kabupaten: instRec.kota || '',
           kecamatan: instRec.kecamatan || '',
           kelurahan: instRec.kelurahan || '',
           rw: instRec.rw || '',
           rt: instRec.rt || ''
-        });
+        };
+        setInstData(loadedInst);
+        setSavedInstData(loadedInst);
         if (instRec.logo) setLogoPreview(pb.files.getUrl(instRec, instRec.logo));
       }
 
@@ -102,7 +105,13 @@ export default function AdminSettings() {
     try {
       const data = new FormData();
       Object.keys(instData).forEach(key => {
-        if (key !== 'negara') data.append(key, instData[key]);
+        if (key !== 'negara') {
+           if (key === 'kota_kabupaten') {
+             data.append('kota', instData[key]);
+           } else {
+             data.append(key, instData[key]);
+           }
+        }
       });
       if (logoFile) data.append('logo', logoFile);
 
@@ -112,6 +121,7 @@ export default function AdminSettings() {
         const record = await pb.collection('institution_profile').create(data);
         setInstId(record.id);
       }
+      setSavedInstData({...instData});
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
@@ -276,6 +286,54 @@ export default function AdminSettings() {
                     SIMPAN PROFIL INSTITUSI
                   </button>
                 </div>
+
+                {instId && savedInstData && (
+                  <div className="mt-12 pt-10 border-t border-slate-100 animate-in fade-in duration-700">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-brand-primary" /> Audit Eksekutif: Riwayat Profil Tersimpan
+                    </h3>
+                    
+                    <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                       <div className="grid grid-cols-[140px_10px_1fr] md:grid-cols-[200px_10px_1fr] items-center gap-y-5 text-sm">
+                          
+                          <div className="font-bold text-slate-500 tracking-wide">Nama Institusi</div>
+                          <div className="font-bold text-slate-300">:</div>
+                          <div className="font-black text-slate-800 text-base">{savedInstData.nama || '-'}</div>
+
+                          <div className="font-bold text-slate-500 tracking-wide">Email Resmi</div>
+                          <div className="font-bold text-slate-300">:</div>
+                          <div className="font-bold text-slate-700 flex items-center gap-2">
+                             {savedInstData.email || '-'}
+                          </div>
+
+                          <div className="font-bold text-slate-500 tracking-wide">Nomor Telepon</div>
+                          <div className="font-bold text-slate-300">:</div>
+                          <div className="font-bold text-slate-700">
+                             {savedInstData.no_hp || '-'}
+                          </div>
+
+                          <div className="font-bold text-slate-500 tracking-wide self-start pt-1">Detail Alamat</div>
+                          <div className="font-bold text-slate-300 self-start pt-1">:</div>
+                          <div className="font-bold text-slate-700 flex flex-col gap-1.5 leading-relaxed">
+                            <span>{savedInstData.alamat || '-'}</span>
+                            <span className="text-xs text-slate-500">
+                              {savedInstData.kelurahan && `${savedInstData.kelurahan}, `}
+                              {savedInstData.kecamatan && `Kec. ${savedInstData.kecamatan}, `}
+                              {savedInstData.kota_kabupaten && `${savedInstData.kota_kabupaten}, `}
+                              {savedInstData.provinsi}
+                            </span>
+                          </div>
+
+                          <div className="font-bold text-slate-500 tracking-wide self-start pt-1">Deskripsi & Motto</div>
+                          <div className="font-bold text-slate-300 self-start pt-1">:</div>
+                          <div className="font-medium text-slate-600 leading-relaxed italic">
+                             {savedInstData.deskripsi ? `"${savedInstData.deskripsi}"` : '-'}
+                          </div>
+
+                       </div>
+                    </div>
+                  </div>
+                )}
               </motion.form>
             ) : (
               <motion.form 

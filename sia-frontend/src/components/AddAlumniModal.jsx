@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, User, MapPin, Briefcase, Phone, Mail, Loader2, Edit3, AlertCircle } from 'lucide-react';
 import { pb } from '../lib/pb';
 import RegionSelect from './RegionSelect';
+import CustomSelect from './CustomSelect';
 
 export default function AddAlumniModal({ isOpen, onClose, onSave, editData = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState('');
   const [isCheckingNim, setIsCheckingNim] = useState(false);
+
+  // Master Data State
+  const [fakultasList, setFakultasList] = useState([]);
+  const [prodiList, setProdiList] = useState([]);
+  const [selectedFakultasId, setSelectedFakultasId] = useState('');
 
   const [formData, setFormData] = useState({
     nim: '',
@@ -31,7 +37,9 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
     jabatan: '',
     np: '',
     keterangan: 'Lulus',
-    semester_dropout: 0
+    semester_dropout: 0,
+    prodi: '',
+    ipk: ''
   });
 
   useEffect(() => {
@@ -66,6 +74,24 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
     return () => clearTimeout(timer);
   }, [formData.nim, editData]);
 
+  // Fetch Master Data
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchMasterData = async () => {
+      try {
+        const [fData, pData] = await Promise.all([
+          pb.collection('fakultas').getFullList({ sort: 'nama' }),
+          pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama' })
+        ]);
+        setFakultasList(fData);
+        setProdiList(pData);
+      } catch (err) {
+        console.error('Gagal mengambil master data fakultas/prodi:', err);
+      }
+    };
+    fetchMasterData();
+  }, [isOpen]);
+
   useEffect(() => {
     if (editData) {
       setFormData({
@@ -73,6 +99,13 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         keterangan: editData.keterangan || 'Lulus',
         status_kerja: editData.status_kerja || 'Belum Bekerja'
       });
+      // Try to resolve fakultas from prodi string
+      if (editData.prodi && prodiList.length > 0) {
+        const matchedProdi = prodiList.find(p => p.nama.toLowerCase() === editData.prodi.toLowerCase());
+        if (matchedProdi) {
+          setSelectedFakultasId(matchedProdi.fakultas_id);
+        }
+      }
     } else {
       setDuplicateWarning('');
       setFormData({
@@ -97,16 +130,27 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         jabatan: '',
         np: '',
         keterangan: 'Lulus',
-        semester_dropout: 0
+        semester_dropout: 0,
+        prodi: '',
+        ipk: ''
       });
+      setSelectedFakultasId('');
     }
-  }, [editData, isOpen]);
+  }, [editData, isOpen, prodiList]);
 
   if (!isOpen) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const formatThreeDigits = (name, value) => {
+    if (!value) return;
+    if (/^\d+$/.test(value)) {
+      const padded = value.padStart(3, '0');
+      setFormData(prev => ({ ...prev, [name]: padded }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -169,7 +213,9 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         instansi: '',
         jabatan: '',
         keterangan: 'Lulus',
-        semester_dropout: 0
+        semester_dropout: 0,
+        prodi: '',
+        ipk: ''
       });
     } catch (err) {
       console.error("Gagal simpan alumni:", err);
@@ -214,7 +260,7 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="space-y-1.5 relative">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">NIM</label>
                 <div className="relative">
-                  <input required name="nim" value={formData.nim} onChange={handleChange} className={`w-full px-4 py-3 rounded-xl border ${duplicateWarning ? 'border-amber-400 focus:ring-amber-100 focus:border-amber-500' : 'border-slate-200 focus:ring-brand-light focus:border-brand-primary/40'} focus:ring-4 transition-all outline-none`} placeholder="Contoh: 201011400" />
+                  <input required type="number" name="nim" value={formData.nim} onChange={handleChange} className={`w-full px-4 py-3 rounded-xl border ${duplicateWarning ? 'border-amber-400 focus:ring-amber-100 focus:border-amber-500' : 'border-slate-200 focus:ring-brand-light focus:border-brand-primary/40'} focus:ring-4 transition-all outline-none`} placeholder="Contoh: 201011400" />
                   {isCheckingNim && (
                     <div className="absolute right-3 top-3 text-slate-400">
                       <Loader2 size={18} className="animate-spin" />
@@ -235,10 +281,15 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jenis Kelamin</label>
-                  <select name="gender" value={formData.gender} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none appearance-none">
-                    <option value="L">Laki-laki</option>
-                    <option value="P">Perempuan</option>
-                  </select>
+                  <CustomSelect 
+                    name="gender" 
+                    value={formData.gender} 
+                    onChange={handleChange} 
+                    options={[
+                      {value: 'L', label: 'Laki-laki'},
+                      {value: 'P', label: 'Perempuan'}
+                    ]}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Agama</label>
@@ -248,45 +299,86 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Gol. Darah</label>
-                  <select name="golongan_darah" value={formData.golongan_darah} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none appearance-none">
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="AB">AB</option>
-                    <option value="O">O</option>
-                  </select>
+                  <CustomSelect 
+                    name="golongan_darah" 
+                    value={formData.golongan_darah} 
+                    onChange={handleChange} 
+                    options={['A', 'B', 'AB', 'O']}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Tahun Lulus</label>
                   <input type="number" name="tahun_lulus" value={formData.tahun_lulus} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all outline-none" />
                 </div>
               </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Fakultas</label>
+                  <select 
+                    value={selectedFakultasId}
+                    onChange={(e) => {
+                      setSelectedFakultasId(e.target.value);
+                      setFormData(prev => ({ ...prev, prodi: '' })); // Reset prodi when fakultas changes!
+                    }}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 appearance-none font-medium"
+                  >
+                    <option value="">-- Pilih Fakultas --</option>
+                    {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Program Studi</label>
+                    <select 
+                      name="prodi" 
+                      value={formData.prodi} 
+                      onChange={handleChange}
+                      disabled={!selectedFakultasId}
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 appearance-none font-medium disabled:opacity-50"
+                    >
+                      <option value="">-- Pilih Prodi --</option>
+                      {prodiList.filter(p => p.fakultas_id === selectedFakultasId).map(p => (
+                        <option key={p.id} value={p.nama}>{p.nama}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">IPK</label>
+                    <input type="number" step="0.01" min="0" max="4" name="ipk" value={formData.ipk} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all outline-none" placeholder="Contoh: 3.85" />
+                  </div>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4 items-end">
                 <div className={`space-y-1.5 transition-all duration-300 ${formData.keterangan === 'Drop Out (DO)' ? 'col-span-1' : 'col-span-2'}`}>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 block min-h-[2.5rem]">Keterangan (Status Akademik)</label>
-                  <select name="keterangan" value={formData.keterangan || 'Lulus'} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none appearance-none bg-white">
-                    <option value="Lulus">Lulus</option>
-                    <option value="Drop Out (DO)">Drop Out (DO)</option>
-                    <option value="Mengundurkan Diri (Keluar)">Mengundurkan Diri (Keluar)</option>
-                    <option value="Pindah Universitas">Pindah Universitas</option>
-                    <option value="Meninggal Dunia">Meninggal Dunia</option>
-                    <option value="Lainnya">Lainnya...</option>
-                  </select>
+                  <CustomSelect 
+                    name="keterangan" 
+                    value={formData.keterangan || 'Lulus'} 
+                    onChange={handleChange} 
+                    options={[
+                      'Lulus',
+                      'Drop Out (DO)',
+                      'Mengundurkan Diri (Keluar)',
+                      'Pindah Universitas',
+                      'Meninggal Dunia',
+                      'Lainnya'
+                    ]}
+                  />
                 </div>
 
                 {formData.keterangan === 'Drop Out (DO)' && (
                   <div className="space-y-1.5 animate-in slide-in-from-left-4 duration-300">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 block min-h-[2.5rem]">Semester Drop Out</label>
-                    <select 
+                    <CustomSelect 
                       name="semester_dropout" 
                       value={formData.semester_dropout || 0} 
                       onChange={handleChange} 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-red-50 focus:border-red-400 transition-all outline-none appearance-none bg-white font-bold text-red-600"
-                    >
-                      <option value="0">Pilih Semester</option>
-                      {[1,2,3,4,5,6,7,8].map(s => (
-                        <option key={s} value={s}>Semester {s}</option>
-                      ))}
-                    </select>
+                      className="text-red-600"
+                      options={[
+                        {value: 0, label: 'Pilih Semester'},
+                        1, 2, 3, 4, 5, 6, 7, 8
+                      ].map(val => typeof val === 'number' && val !== 0 ? {value: val, label: `Semester ${val}`} : val)}
+                    />
                   </div>
                 )}
               </div>
@@ -331,10 +423,12 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               
               <div className="space-y-1.5 mb-4">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Negara</label>
-                <select name="negara" value={formData.negara} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none appearance-none bg-white">
-                  <option value="Indonesia">Indonesia</option>
-                  <option value="Luar Negeri">Luar Negeri</option>
-                </select>
+                <CustomSelect 
+                  name="negara" 
+                  value={formData.negara} 
+                  onChange={handleChange} 
+                  options={['Indonesia', 'Luar Negeri']}
+                />
               </div>
 
               <RegionSelect 
@@ -346,11 +440,25 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="grid grid-cols-2 gap-4 w-1/2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">RW</label>
-                  <input name="rw" value={formData.rw} onChange={handleChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400" placeholder="001"/>
+                  <input 
+                    name="rw" 
+                    value={formData.rw} 
+                    onChange={handleChange} 
+                    onBlur={(e) => formatThreeDigits('rw', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400" 
+                    placeholder="001"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">RT</label>
-                  <input name="rt" value={formData.rt} onChange={handleChange} className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400" placeholder="012"/>
+                  <input 
+                    name="rt" 
+                    value={formData.rt} 
+                    onChange={handleChange} 
+                    onBlur={(e) => formatThreeDigits('rt', e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-400" 
+                    placeholder="012"
+                  />
                 </div>
               </div>
             </div>
@@ -368,12 +476,12 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
-                <select name="status_kerja" value={formData.status_kerja} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none appearance-none">
-                  <option value="Bekerja">Bekerja</option>
-                  <option value="Wiraswasta">Wiraswasta</option>
-                  <option value="Belum Bekerja">Belum Bekerja</option>
-                  <option value="Melanjutkan Studi">Melanjutkan Studi</option>
-                </select>
+                <CustomSelect 
+                  name="status_kerja" 
+                  value={formData.status_kerja} 
+                  onChange={handleChange} 
+                  options={['Bekerja', 'Wiraswasta', 'Belum Bekerja', 'Melanjutkan Studi']}
+                />
               </div>
               
               {formData.status_kerja === 'Bekerja' && (

@@ -51,22 +51,29 @@ export default function Activate() {
     setLoading(true);
     setError('');
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{10,}$/;
+    if (!passwordRegex.test(password)) {
+      setError("Password harus minimal 10 karakter dan memiliki kombinasi huruf kapital, kecil, angka, dan simbol.");
+      setLoading(false);
+      return;
+    }
+
     if (password !== passwordConfirm) {
       setError("Password tidak cocok.");
       setLoading(false);
       return;
     }
 
-    try {
+      try {
       // 1. Create User
       const userData = {
+        username: nim,    // MAPPING NIM SEBAGAI USERNAME AGAR BISA LOGIN VIA KEDUA TAB ALUMNI
         email,
         emailVisibility: true,
         password,
         passwordConfirm,
         name: masterRecord.name || nim, // name from master data if exists
         role: "alumni",
-        nim: nim
       };
 
       const newUser = await pb.collection('users').create(userData);
@@ -78,7 +85,7 @@ export default function Activate() {
       });
 
       // 3. Auto login
-      await useAuthStore.getState().login(email, password);
+      await useAuthStore.getState().login(nim, password); // LOGIN MENGGUNAKAN NIM (SEBAGAI USERNAME)
       navigate('/');
       
     } catch (err) {
@@ -148,7 +155,7 @@ export default function Activate() {
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimal 8 karakter"
+                placeholder="Min. 10 karakter (A-a, 0-9, Simbol)"
               />
             </div>
             <div>
