@@ -117,7 +117,7 @@ export default function IndustryAlumniSearch() {
       pb.autoCancellation(false);
       const result = await pb.collection('alumni').getList(pageNum, PER_PAGE, {
         filter: finalFilter || '',
-        fields: 'collectionId,collectionName,id,nama,nim,prodi,ipk,angkatan,pekerjaan_status,is_open_to_work,foto,keahlian,kota,provinsi',
+        fields: 'collectionId,collectionName,id,nama,nim,prodi,ipk,angkatan,pekerjaan_status,is_open_to_work,gambar,keahlian,kota,provinsi',
       });
 
       setAlumni(result.items);
@@ -528,9 +528,9 @@ export default function IndustryAlumniSearch() {
                 {/* Left Side: Photo Section */}
                 <div className="relative flex-shrink-0">
                   <div className="w-32 h-40 rounded-[2.2rem] bg-main p-1 border-2 border-border-subtle group-hover:border-brand-primary/30 transition-all duration-500 overflow-hidden shadow-sm group-hover:scale-[1.02]">
-                    {a.foto ? (
+                    {a.gambar ? (
                       <img 
-                        src={pb.files.getUrl(a, a.foto)} 
+                        src={pb.files.getUrl(a, a.gambar)} 
                         alt={a.nama} 
                         className="w-full h-full object-cover rounded-[2rem]" 
                       />
@@ -651,7 +651,7 @@ export default function IndustryAlumniSearch() {
                     </div>
                     
                     <Link 
-                      to={`/admin/alumni/${a.id}`}
+                      to={`/industri/alumni/${a.id}`}
                       className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-secondary opacity-30 hover:opacity-100 hover:text-brand-primary transition-all group/link"
                     >
                       Profil Lengkap

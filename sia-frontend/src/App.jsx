@@ -24,6 +24,9 @@ import AdminCompanyVerification from './pages/AdminCompanyVerification';
 import MasterAddress from './pages/MasterAddress';
 import Layout from './components/Layout';
 import Settings from './pages/Settings';
+import AdminKuesionerList from './pages/AdminKuesionerList';
+import AdminKuesionerBuilder from './pages/AdminKuesionerBuilder';
+import AdminKuesionerResults from './pages/AdminKuesionerResults';
 
 const ProtectedRoute = ({ children }) => {
   const { isValid } = useAuthStore();
@@ -89,6 +92,9 @@ function App() {
           <Route path="/profile" element={<AlumniProfile />} />
           <Route path="/lowongan" element={<AlumniJobs />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/alumni-directory" element={<AlumniList />} />
+          <Route path="/alumni/:id" element={<AlumniDetail />} />
+          <Route path="/map" element={<AdminMap />} />
           
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/alumni" element={<AdminRoute><AlumniList /></AdminRoute>} />
@@ -96,6 +102,9 @@ function App() {
           <Route path="/admin/master" element={<AdminRoute><MasterNIM /></AdminRoute>} />
           <Route path="/admin/map" element={<AdminRoute><AdminMap /></AdminRoute>} />
           <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
+          <Route path="/admin/kuesioner" element={<AdminRoute><AdminKuesionerList /></AdminRoute>} />
+          <Route path="/admin/kuesioner/:id/edit" element={<AdminRoute><AdminKuesionerBuilder /></AdminRoute>} />
+          <Route path="/admin/kuesioner/:id/results" element={<AdminRoute><AdminKuesionerResults /></AdminRoute>} />
           {/* Aliasing older route for compatibility */}
           <Route path="/admin/profile-institusi" element={<AdminRoute><AdminSettings /></AdminRoute>} />
           <Route path="/admin/perusahaan" element={<AdminRoute><AdminCompanyVerification /></AdminRoute>} />
@@ -108,7 +117,8 @@ function App() {
           <Route path="/industri/lowongan" element={<IndustryRoute><IndustryJobPostings /></IndustryRoute>} />
           <Route path="/industri/lowongan/buat" element={<IndustryRoute><IndustryCreateJob /></IndustryRoute>} />
           <Route path="/industri/lowongan/edit/:id" element={<IndustryRoute><IndustryCreateJob /></IndustryRoute>} />
-          <Route path="/industri/lowongan/:jobId/pelamar" element={<IndustryRoute><IndustryApplicants /></IndustryRoute>} />
+           <Route path="/industri/lowongan/:jobId/pelamar" element={<IndustryRoute><IndustryApplicants /></IndustryRoute>} />
+          <Route path="/industri/alumni/:id" element={<IndustryRoute><AlumniDetail /></IndustryRoute>} />
         </Route>
         
         <Route path="*" element={<Navigate to="/" replace />} />

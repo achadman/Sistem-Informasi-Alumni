@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Building2, Users, Briefcase, BookmarkCheck,
   Clock, CheckCircle2, AlertCircle, ArrowRight,
-  Search, PlusCircle, TrendingUp, Star, Shield
+  Search, PlusCircle, TrendingUp, Shield
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
@@ -118,16 +118,16 @@ export default function IndustryDashboard() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col sm:flex-row sm:items-center gap-6"
+        className="flex flex-col sm:flex-row sm:items-center gap-4"
       >
         <div className="flex items-center gap-5">
           {company?.logo ? (
-            <div className="w-20 h-20 rounded-[2rem] bg-surface p-1 border border-border-subtle shadow-premium overflow-hidden">
+            <div className="w-14 h-14 rounded-2xl bg-surface p-1 border border-border-subtle shadow-premium overflow-hidden">
               <img
                 src={pb.files.getUrl(company, company.logo)}
                 alt="Logo"
@@ -135,12 +135,12 @@ export default function IndustryDashboard() {
               />
             </div>
           ) : (
-            <div className="w-20 h-20 rounded-[2rem] bg-brand-primary flex items-center justify-center shadow-premium shadow-blue-500/20">
+            <div className="w-14 h-14 rounded-2xl bg-brand-primary flex items-center justify-center shadow-premium shadow-blue-500/20">
               <Building2 size={32} className="text-white" />
             </div>
           )}
           <div>
-            <h1 className="text-3xl font-black text-primary tracking-tight leading-tight">
+            <h1 className="text-2xl font-black text-primary tracking-tight leading-tight">
               {company?.nama || 'Dashboard Industri'}
             </h1>
             <div className="flex items-center gap-2 mt-1">
@@ -187,17 +187,17 @@ export default function IndustryDashboard() {
       )}
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {statCards.map((card, i) => (
           <motion.div
             key={card.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            className="premium-card relative group hover:scale-[1.03] duration-500"
+            className="premium-card !p-4 relative group hover:scale-[1.03] duration-500"
           >
             <div className={`absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity ${card.text}`}>
-                {React.cloneElement(card.icon, { size: 100 })}
+                {React.cloneElement(card.icon, { size: 80 })}
              </div>
             <div className="flex items-center justify-between mb-4 relative z-10">
               <div className={`p-3 bg-brand-primary/10 rounded-2xl shadow-sm ${card.text}`}>
@@ -216,7 +216,7 @@ export default function IndustryDashboard() {
         <h2 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] opacity-40 ml-1">
           Aksi Cepat
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {quickActions.map((action, i) => (
             <motion.div
               key={action.label}
@@ -226,8 +226,8 @@ export default function IndustryDashboard() {
               className="h-full"
             >
               {action.disabled ? (
-                <div className="h-full p-6 rounded-[2.5rem] bg-main border border-border-subtle opacity-40 cursor-not-allowed group relative overflow-hidden">
-                  <div className={`w-14 h-14 rounded-2xl ${action.color} bg-opacity-20 flex items-center justify-center mb-4`}>
+                <div className="h-full p-4 rounded-3xl bg-main border border-border-subtle opacity-40 cursor-not-allowed group relative overflow-hidden">
+                  <div className={`w-11 h-11 rounded-xl ${action.color} bg-opacity-20 flex items-center justify-center mb-3`}>
                     <span className="text-white">{action.icon}</span>
                   </div>
                   <p className="font-black text-primary text-sm uppercase tracking-wider">{action.label}</p>
@@ -239,9 +239,9 @@ export default function IndustryDashboard() {
               ) : (
                 <Link
                   to={action.to}
-                  className="h-full block p-6 premium-card hover:border-brand-primary group overflow-hidden"
+                  className="h-full block p-4 premium-card hover:border-brand-primary group overflow-hidden"
                 >
-                  <div className={`w-14 h-14 rounded-2xl ${action.color} flex items-center justify-center mb-4 transition-all group-hover:scale-110 shadow-lg`}>
+                  <div className={`w-11 h-11 rounded-xl ${action.color} flex items-center justify-center mb-3 transition-all group-hover:scale-110 shadow-lg`}>
                     <span className="text-white">{action.icon}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -265,9 +265,9 @@ export default function IndustryDashboard() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="premium-card"
+        className="premium-card !p-5"
       >
-        <div className="flex items-center justify-between mb-8 border-b border-border-subtle pb-4">
+        <div className="flex items-center justify-between mb-5 border-b border-border-subtle pb-3">
           <div className="flex items-center gap-2">
             <Building2 size={16} className="text-brand-primary" />
             <h2 className="font-black text-primary text-sm uppercase tracking-widest">Detail Institusi</h2>
@@ -279,7 +279,7 @@ export default function IndustryDashboard() {
             Perbarui <ArrowRight size={12} />
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           {[
             { label: 'Email Resmi', value: company?.email || '-' },
             { label: 'No. Telepon', value: company?.no_hp || '-' },
@@ -295,14 +295,12 @@ export default function IndustryDashboard() {
           ))}
         </div>
         {company?.deskripsi && (
-          <div className="mt-8 pt-8 border-t border-border-subtle">
+          <div className="mt-5 pt-5 border-t border-border-subtle">
             <p className="text-[10px] text-secondary font-black uppercase tracking-[0.15em] opacity-40 mb-3">Profil Deskripsi</p>
             <p className="text-secondary text-sm leading-relaxed font-medium opacity-80">{company.deskripsi}</p>
           </div>
         )}
       </motion.div>
-
-
     </div>
   );
 }

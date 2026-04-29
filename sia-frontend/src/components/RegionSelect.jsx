@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import AutocompleteSearch from './AutocompleteSearch';
 
-export default function RegionSelect({ formData, handleChange, isIndonesia }) {
+export default function RegionSelect({ formData, handleChange, isIndonesia, direction = "down" }) {
   // We maintain local IDs for cascading filters 
   // (Note: AddAlumniModal only saves names to db, but we need IDs to query Pocketbase correctly)
   const [selectedProvId, setSelectedProvId] = useState('');
@@ -97,6 +97,7 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
              placeholder="Cari atau pilih provinsi..."
              valueDisplay={formData.provinsi}
              onSelect={handleProvSelect}
+             direction={direction}
            />
         </div>
 
@@ -110,6 +111,7 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
              extraFilter={selectedProvId ? `parent_id = "${selectedProvId}"` : ''}
              valueDisplay={formData.kota_kabupaten}
              onSelect={handleRegSelect}
+             direction={direction}
            />
            {!formData.provinsi && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih provinsi terlebih dahulu</p>}
         </div>
@@ -124,6 +126,7 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
              extraFilter={selectedRegId ? `parent_id = "${selectedRegId}"` : ''}
              valueDisplay={formData.kecamatan}
              onSelect={handleDistSelect}
+             direction={direction}
            />
            {!formData.kota_kabupaten && formData.provinsi && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih kota terlebih dahulu</p>}
         </div>
@@ -138,6 +141,7 @@ export default function RegionSelect({ formData, handleChange, isIndonesia }) {
              extraFilter={selectedDistId ? `parent_id = "${selectedDistId}"` : ''}
              valueDisplay={formData.kelurahan}
              onSelect={handleVillSelect}
+             direction={direction}
            />
            {!formData.kecamatan && formData.kota_kabupaten && <p className="text-[10px] text-slate-400 mt-1 italic">Pilih kecamatan terlebih dahulu</p>}
         </div>

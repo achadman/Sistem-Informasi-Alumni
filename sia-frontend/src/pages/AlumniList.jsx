@@ -16,16 +16,23 @@ import {
   FileText,
   X,
   ChevronDown,
-  User
+  User,
+  UploadCloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AddAlumniModal from '../components/AddAlumniModal';
+import ImportAlumniModal from '../components/ImportAlumniModal';
 import { pb } from '../lib/pb';
 import { exportAlumniToPDF } from '../lib/pdfGenerator';
+import { useAuthStore } from '../store/authStore';
 
 export default function AlumniList() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const isIndustri = user?.role === 'industri';
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [alumni, setAlumni] = useState([]);
@@ -213,8 +220,59 @@ export default function AlumniList() {
     fetchAlumni();
   };
 
+  const handleExportCSV = async () => {
+    try {
+      // Mengambil seluruh data tanpa paginasi untuk ekspor lengkap
+      const allData = await pb.collection('alumni').getFullList();
+      if (!allData || allData.length === 0) return;
+
+      const headers = [
+        "NIM", "Nama", "Tahun Lulus", "Gender", "Program Studi", "Fakultas", 
+        "Status Akademik", "Status Kerja", "Instansi", "Bidang Pekerjaan", 
+        "Jabatan", "Pendapatan", "Provinsi", "Kota", "Keahlian", 
+        "Sertifikasi", "Tahun Masuk", "Semester DO", "IPK"
+      ];
+      
+      const rows = allData.map(a => [
+        `"${a.nim || ''}"`,
+        `"${a.nama || ''}"`,
+        `"${a.tahun_lulus || ''}"`,
+        `"${a.gender || ''}"`,
+        `"${a.prodi || ''}"`,
+        `"${a.fakultas || ''}"`,
+        `"${a.keterangan || 'Lulus'}"`,
+        `"${a.status_kerja || ''}"`,
+        `"${a.np || a.nama_perusahaan || ''}"`,
+        `"${a.bidang_pekerjaan || ''}"`,
+        `"${a.jabatan || ''}"`,
+        `"${a.pendapatan || ''}"`,
+        `"${a.provinsi || ''}"`,
+        `"${a.kota || ''}"`,
+        `"${a.keahlian || ''}"`,
+        `"${a.sertifikasi || ''}"`,
+        `"${a.tahun_masuk || ''}"`,
+        `"${a.semester_dropout || ''}"`,
+        `"${a.ipk || ''}"`
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Data_Seluruh_Alumni_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Gagal export CSV:", err);
+      alert("Gagal mengunduh data alumni.");
+    }
+  };
+
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] md:h-[calc(100vh-4rem)] -mt-2 -mb-8 animate-in fade-in duration-500">
+    <div className="flex flex-col animate-in fade-in duration-500 pb-12">
       {/* Top Fixed Section */}
       <div className="flex-none space-y-3 pb-3">
       {/* Header Area */}
@@ -248,20 +306,38 @@ export default function AlumniList() {
             )}
           </button>
           
-          <button className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-            <Download size={16} />
-          </button>
+          {isAdmin && (
+             <button 
+               onClick={handleExportCSV}
+               title="Unduh Seluruh Data Alumni (CSV)"
+               className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+             >
+               <Download size={16} />
+             </button>
+          )}
 
-          <button 
-            onClick={() => {
-              setEditData(null);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95 text-sm"
-          >
-            <Plus size={16} />
-            <span className="hidden md:inline">Tambah Alumni</span>
-          </button>
+          {isAdmin && (
+             <button 
+               onClick={() => setIsImportModalOpen(true)}
+               title="Import Data Massal (CSV)"
+               className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+             >
+               <UploadCloud size={16} />
+             </button>
+          )}
+
+          {isAdmin && (
+             <button 
+               onClick={() => {
+                 setEditData(null);
+                 setIsModalOpen(true);
+               }}
+               className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95 text-sm"
+             >
+               <Plus size={16} />
+               <span className="hidden md:inline">Tambah Alumni</span>
+             </button>
+          )}
         </div>
       </div>
 
@@ -506,20 +582,20 @@ export default function AlumniList() {
       </div>
 
       {/* Table Container */}
-      <div className="flex-1 bg-white rounded-[2rem] border border-slate-100 shadow-soft flex flex-col min-h-0">
-        <div className="flex-1 overflow-auto custom-scrollbar">
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-soft flex flex-col mt-4 overflow-clip">
+        <div className="w-full overflow-x-auto xl:overflow-visible">
           <table className="w-full text-left relative">
-            <thead className="sticky top-0 bg-white z-20 shadow-sm">
-              <tr className="border-b border-slate-50">
-                <th className="px-8 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider w-16">No.</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Alumni</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">NIM</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Tahun Lulus</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">L/P</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Keterangan</th>
-                <th className="px-6 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider">Instansi</th>
-                <th className="px-8 py-6 text-sm font-bold text-slate-400 uppercase tracking-wider text-right">Aksi</th>
+            <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-20 shadow-sm border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">No.</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Alumni</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">NIM</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Tahun Lulus</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">L/P</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Status</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Keterangan</th>
+                <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Instansi</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -551,54 +627,54 @@ export default function AlumniList() {
                 </tr>
               ) : (
                 alumni.map((person, index) => (
-                  <tr key={person.id} className="hover:bg-slate-50/50 transition-colors group">
-                    <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-slate-400">
+                  <tr key={person.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="text-xs font-bold text-slate-400">
                         {(currentPage - 1) * itemsPerPage + index + 1}
                       </span>
                     </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center overflow-hidden text-brand-primary font-bold group-hover:bg-blue-100 transition-colors shadow-sm">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center overflow-hidden text-brand-primary font-bold group-hover:bg-blue-100 transition-colors shadow-sm">
                           {person.gambar ? (
                             <img src={pb.files.getURL(person, person.gambar, { 'thumb': '100x100' })} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (
                             person.nama.charAt(0)
                           )}
                         </div>
-                        <span className="font-bold text-slate-800">{person.nama}</span>
+                        <span className="font-bold text-sm text-slate-800">{person.nama}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-5 text-slate-500 font-medium">#{person.nim}</td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2 text-slate-600">
+                    <td className="px-5 py-4 text-slate-500 font-semibold text-sm">{person.nim}</td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1.5 text-slate-600 text-sm font-medium">
                         <Calendar size={14} className="text-slate-400" />
                         {person.tahun_lulus}
                       </div>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-5 py-4">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${person.gender === 'L' ? 'bg-brand-light text-brand-primary' : 'bg-pink-50 text-pink-600'}`}>
                         {person.gender}
                       </span>
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-5 py-4">
                       <StatusBadge status={person.status_kerja || person.status} />
                     </td>
-                    <td className="px-6 py-5">
+                    <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200">
                         {person.keterangan || 'Lulus'}
                       </span>
                     </td>
-                    <td className="px-6 py-5 text-slate-600 uppercase text-xs font-bold">{person.np || '-'}</td>
-                    <td className="px-8 py-5 text-right relative">
+                    <td className="px-5 py-4 text-slate-600 uppercase text-xs font-bold">{person.np || '-'}</td>
+                    <td className="px-6 py-4 text-right relative">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenDropdownId(openDropdownId === person.id ? null : person.id);
                         }}
-                        className="text-slate-300 hover:text-slate-600 p-2 rounded-xl transition-colors"
+                        className="text-slate-300 hover:text-slate-600 p-1.5 rounded-lg transition-colors"
                       >
-                        <MoreHorizontal size={24} />
+                        <MoreHorizontal size={20} />
                       </button>
 
                       {/* Dropdown Menu */}
@@ -607,36 +683,41 @@ export default function AlumniList() {
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/admin/alumni/${person.id}`);
+                              navigate(isAdmin ? `/admin/alumni/${person.id}` : isIndustri ? `/industri/alumni/${person.id}` : `/alumni/${person.id}`);
                             }}
                             className="w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50"
                           >
                             <User size={16} />
-                            Detail Alumni
+                            Detail & Kontak
                           </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditData(person);
-                              setIsModalOpen(true);
-                              setOpenDropdownId(null);
-                            }}
-                            className="w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-brand-light hover:text-brand-primary transition-colors"
-                          >
-                            <Edit3 size={16} />
-                            Edit Data
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              exportAlumniToPDF(person);
-                              setOpenDropdownId(null);
-                            }}
-                            className="w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors border-t border-slate-50"
-                          >
-                            <FileText size={16} />
-                            Download PDF
-                          </button>
+                          
+                          {isAdmin && (
+                            <>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditData(person);
+                                  setIsModalOpen(true);
+                                  setOpenDropdownId(null);
+                                }}
+                                className="w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-brand-light hover:text-brand-primary transition-colors"
+                              >
+                                <Edit3 size={16} />
+                                Edit Data
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  exportAlumniToPDF(person);
+                                  setOpenDropdownId(null);
+                                }}
+                                className="w-full text-left px-4 py-3 flex items-center gap-3 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors border-t border-slate-50"
+                              >
+                                <FileText size={16} />
+                                Download PDF
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
@@ -645,39 +726,39 @@ export default function AlumniList() {
               )}
             </tbody>
           </table>
-        </div>
 
-        {/* Pagination */}
-        <div className="p-8 border-t border-slate-50 flex items-center justify-between">
-          <p className="text-sm text-slate-400 font-medium font-outfit">
-            Menampilkan <span className="text-slate-900 font-bold">{alumni.length}</span> dari <span className="text-slate-900 font-bold">{totalItems}</span> alumni
-          </p>
-          <div className="flex gap-2">
-             <button 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              className="p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
-             >
-               <ChevronLeft size={20} />
-             </button>
-             
-             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+          {/* Pagination - Now inside the scrollable container to follow the table content */}
+          <div className="p-8 border-t border-slate-50 flex items-center justify-between">
+            <p className="text-sm text-slate-400 font-medium font-outfit">
+              Menampilkan <span className="text-slate-900 font-bold">{alumni.length}</span> dari <span className="text-slate-900 font-bold">{totalItems}</span> alumni
+            </p>
+            <div className="flex gap-2">
                <button 
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-4 py-2 rounded-xl font-bold transition-all ${currentPage === page ? 'bg-brand-primary text-white shadow-md shadow-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
                >
-                 {page}
+                 <ChevronLeft size={20} />
                </button>
-             ))}
+               
+               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                 <button 
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`px-4 py-2 rounded-xl font-bold transition-all ${currentPage === page ? 'bg-brand-primary text-white shadow-md shadow-blue-100' : 'text-slate-400 hover:bg-slate-50'}`}
+                 >
+                   {page}
+                 </button>
+               ))}
 
-             <button 
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              className="p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
-             >
-               <ChevronRight size={20} />
-             </button>
+               <button 
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition-all text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+               >
+                 <ChevronRight size={20} />
+               </button>
+            </div>
           </div>
         </div>
       </div>
@@ -690,6 +771,12 @@ export default function AlumniList() {
         }} 
         onSave={handleSaveAlumni}
         editData={editData}
+      />
+
+      <ImportAlumniModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={handleSaveAlumni}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
+import { useLocation } from 'react-router-dom';
 
 const STATUS_COLORS = {
   Aktif: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -32,6 +33,9 @@ export default function IndustryJobPostings() {
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [applicantCounts, setApplicantCounts] = useState({});
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const highlightedJobId = searchParams.get('jobId');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -296,7 +300,7 @@ export default function IndustryJobPostings() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
-                className="premium-card group hover:scale-[1.01]"
+                className={`premium-card group hover:scale-[1.01] ${highlightedJobId === job.id ? 'border-brand-primary ring-4 ring-brand-primary/20 bg-blue-50/50 shadow-xl shadow-blue-500/10' : ''}`}
               >
                 <div className="flex flex-col md:flex-row items-start justify-between gap-6">
                   <div className="flex-1 min-w-0">

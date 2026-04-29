@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Search,
   Briefcase,
+  FileQuestion,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { pb } from '../lib/pb';
@@ -67,6 +68,7 @@ export default function Sidebar() {
 
   const menuItems = isAdmin ? [
     { name: 'Dashboard', path: '/admin', icon: <LayoutDashboard size={20} /> },
+    { name: 'Kuesioner', path: '/admin/kuesioner', icon: <FileQuestion size={20} /> },
     { name: 'Daftar Alumni', path: '/admin/alumni', icon: <Users size={20} /> },
     { name: 'Verifikasi Perusahaan', path: '/admin/perusahaan', icon: <Building size={20} /> },
     { name: 'Peta Sebaran', path: '/admin/map', icon: <Map size={20} /> },
@@ -79,6 +81,7 @@ export default function Sidebar() {
     { name: 'Profil Perusahaan', path: '/industri/profil', icon: <Building2 size={20} /> },
   ] : [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
+    { name: 'Peta Distribusi', path: '/map', icon: <Map size={20} /> },
     { name: 'Bursa Karir', path: '/lowongan', icon: <Briefcase size={20} /> },
     { name: 'Profil Saya', path: '/profile', icon: <UserCircle size={20} /> },
     { name: 'Tracer Study', path: '/tracer', icon: <FileText size={20} /> }
@@ -172,7 +175,7 @@ export default function Sidebar() {
           <NavLink
             key={item.path}
             to={item.path}
-            end={item.path === '/admin' || item.path === '/'}
+            end={item.path === '/admin' || item.path === '/' || item.path === '/industri'}
             onClick={handleNavItemClick}
             className={({ isActive }) =>
               cn(

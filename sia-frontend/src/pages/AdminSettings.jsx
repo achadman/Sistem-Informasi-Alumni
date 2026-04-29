@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Save, Upload, Building, Mail, Phone, MapPin, 
+  Save, Building, Mail, Phone, MapPin, 
   Loader2, CheckCircle2, FileText, Calendar, 
-  Settings, Globe, ShieldCheck, Clock
+  Settings, Globe, ShieldCheck, Clock, Camera,
+  Edit2, ImageIcon, Share2
 } from 'lucide-react';
 import { pb } from '../lib/pb';
 import RegionSelect from '../components/RegionSelect';
+import SocialMediaEditor, { getPlatformIcon } from '../components/SocialMediaEditor';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AdminSettings() {
@@ -14,6 +16,7 @@ export default function AdminSettings() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
 
   // Institution Form Data
   const [instId, setInstId] = useState(null);
@@ -29,11 +32,17 @@ export default function AdminSettings() {
     kecamatan: '',
     kelurahan: '',
     rw: '',
-    rt: ''
+    rt: '',
+    social_media: []
   });
-  const [savedInstData, setSavedInstData] = useState(null);
+  
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
+  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerPreview, setBannerPreview] = useState(null);
+
+  const logoInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
 
   // Tracer Study Form Data
   const [tracerId, setTracerId] = useState(null);
@@ -69,11 +78,12 @@ export default function AdminSettings() {
           kecamatan: instRec.kecamatan || '',
           kelurahan: instRec.kelurahan || '',
           rw: instRec.rw || '',
-          rt: instRec.rt || ''
+          rt: instRec.rt || '',
+          social_media: Array.isArray(instRec.social_media) ? instRec.social_media : (typeof instRec.social_media === 'string' ? JSON.parse(instRec.social_media || '[]') : [])
         };
         setInstData(loadedInst);
-        setSavedInstData(loadedInst);
         if (instRec.logo) setLogoPreview(pb.files.getUrl(instRec, instRec.logo));
+        if (instRec.banner) setBannerPreview(pb.files.getUrl(instRec, instRec.banner));
       }
 
       // Fetch Tracer Settings
@@ -99,21 +109,19 @@ export default function AdminSettings() {
   const handleSaveInstitusi = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSuccess(false);
     setError('');
 
     try {
       const data = new FormData();
       Object.keys(instData).forEach(key => {
         if (key !== 'negara') {
-           if (key === 'kota_kabupaten') {
-             data.append('kota', instData[key]);
-           } else {
-             data.append(key, instData[key]);
-           }
+           if (key === 'kota_kabupaten') data.append('kota', instData[key]);
+           else if (key === 'social_media') data.append(key, JSON.stringify(instData[key]));
+           else data.append(key, instData[key]);
         }
       });
       if (logoFile) data.append('logo', logoFile);
+      if (bannerFile) data.append('banner', bannerFile);
 
       if (instId) {
         await pb.collection('institution_profile').update(instId, data);
@@ -121,11 +129,12 @@ export default function AdminSettings() {
         const record = await pb.collection('institution_profile').create(data);
         setInstId(record.id);
       }
-      setSavedInstData({...instData});
       setSuccess(true);
+      setIsEditing(false);
       setTimeout(() => setSuccess(false), 3000);
+      fetchAllData();
     } catch (err) {
-      setError("Gagal simpan profil: " + (err.message || "Pastikan koleksi 'institution_profile' sudah benar."));
+      setError("Gagal simpan profil: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -134,7 +143,6 @@ export default function AdminSettings() {
   const handleSaveTracer = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setSuccess(false);
     setError('');
 
     try {
@@ -148,7 +156,7 @@ export default function AdminSettings() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError("Gagal simpan tracer: " + (err.message || "Pastikan koleksi 'tracer_settings' sudah ada di PocketBase."));
+      setError("Gagal simpan tracer: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -157,278 +165,245 @@ export default function AdminSettings() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center p-20 text-slate-400">
-        <Loader2 className="animate-spin mr-3 text-brand-primary" />
-        Memuat seluruh konfigurasi sistem...
+        <Loader2 className="animate-spin mr-3 text-blue-600" />
+        Memuat konfigurasi...
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Pusat Pengaturan</h1>
-          <p className="text-slate-500 mt-1">Konfigurasi identitas institusi dan sistem kuesioner.</p>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Pusat Konfigurasi</h1>
+          <p className="text-slate-500 text-sm mt-1">Kelola identitas institusi dan pengaturan sistem Tracer Study.</p>
         </div>
         {success && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }} 
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-5 py-2.5 rounded-2xl font-black border border-emerald-100 shadow-sm"
-          >
-            <CheckCircle2 size={18} />
-            DIANUT & DISIMPAN
-          </motion.div>
+          <div className="flex items-center gap-2 bg-green-50 text-green-700 px-6 py-2 rounded-full font-bold border border-green-200 shadow-sm text-xs">
+            <CheckCircle2 size={16} /> BERHASIL DISIMPAN
+          </div>
         )}
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-soft overflow-hidden">
-        {/* TAB HEADERS */}
-        <div className="flex border-b border-slate-100 p-2 bg-slate-50/50">
-          <button 
-            onClick={() => setActiveTab('institusi')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'institusi' ? 'bg-white text-brand-primary shadow-sm ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+      {/* Tabs */}
+      <div className="flex gap-2 p-1 bg-slate-100 rounded-3xl w-fit">
+        <button 
+          onClick={() => setActiveTab('institusi')}
+          className={`px-8 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all ${activeTab === 'institusi' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+        >
+          Profil Institusi
+        </button>
+        <button 
+          onClick={() => setActiveTab('tracer')}
+          className={`px-8 py-2.5 rounded-full text-xs font-black tracking-widest uppercase transition-all ${activeTab === 'tracer' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+        >
+          Tracer Study
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'institusi' ? (
+          <motion.div 
+            key="inst"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-6"
           >
-            <Building size={18} /> Profil Institusi
-          </button>
-          <button 
-            onClick={() => setActiveTab('tracer')}
-            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'tracer' ? 'bg-white text-brand-primary shadow-sm ring-1 ring-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-            <FileText size={18} /> Konfigurasi Tracer Study
-          </button>
-        </div>
-
-        <div className="p-8 md:p-12">
-          {error && (
-            <div className="p-4 mb-8 bg-red-50 text-red-600 rounded-2xl text-sm font-bold border border-red-100 italic">
-              ⚠ {error}
-            </div>
-          )}
-
-          <AnimatePresence mode="wait">
-            {activeTab === 'institusi' ? (
-              <motion.form 
-                key="institusi"
-                initial={{ opacity: 0, x: -10 }} 
-                animate={{ opacity: 1, x: 0 }} 
-                exit={{ opacity: 0, x: 10 }}
-                onSubmit={handleSaveInstitusi} 
-                className="space-y-12"
-              >
-                {/* Logo Section */}
-                <section className="flex flex-col md:flex-row gap-10">
-                  <div className="w-full md:w-1/3 flex flex-col items-center gap-6">
-                    <div className="relative group">
-                      <div className="w-48 h-48 rounded-[2rem] bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-300 shadow-inner">
-                        {logoPreview ? (
-                          <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
-                        ) : (
-                          <Building size={48} className="text-slate-200" />
-                        )}
-                      </div>
-                      <label className="absolute -bottom-3 -right-3 p-3 bg-brand-primary text-white rounded-2xl shadow-xl hover:brightness-110 transition-all cursor-pointer">
-                        <Upload size={20} />
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => {
-                           const file = e.target.files[0];
-                           if(file) { setLogoFile(file); setLogoPreview(URL.createObjectURL(file)); }
-                        }} />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 space-y-6">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Resmi</label>
-                      <input 
-                        required 
-                        value={instData.nama} 
-                        onChange={(e) => setInstData({...instData, nama: e.target.value})} 
-                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-brand-light outline-none font-bold text-slate-800"
-                        placeholder="Universitas..." 
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Singkat</label>
-                      <textarea 
-                        value={instData.deskripsi} 
-                        onChange={(e) => setInstData({...instData, deskripsi: e.target.value})} 
-                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-4 focus:ring-brand-light outline-none h-32 resize-none" 
-                        placeholder="Tentang universitas..."
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Contact & Address (Grouped) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2"><Mail size={12}/> Email Resmi</label>
-                    <input type="email" value={instData.email} onChange={(e) => setInstData({...instData, email: e.target.value})} className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 outline-none" placeholder="info@..." />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2"><Phone size={12}/> No. Telepon</label>
-                    <input value={instData.no_hp} onChange={(e) => setInstData({...instData, no_hp: e.target.value})} className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 outline-none" placeholder="021..." />
+            {/* Profile Header LinkedIn Style */}
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-sm">
+              <div className="h-48 relative bg-slate-200 group">
+                {bannerPreview ? (
+                  <img src={bannerPreview} alt="Banner" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-r from-blue-600/20 to-indigo-600/10" />
+                )}
+                <button 
+                  onClick={() => bannerInputRef.current?.click()}
+                  className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+                >
+                  <span className="bg-white/90 text-slate-700 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg">Ganti Sampul</span>
+                </button>
+                <input type="file" ref={bannerInputRef} className="hidden" accept="image/*" onChange={(e)=>{
+                  const f=e.target.files[0]; if(f){ setBannerFile(f); setBannerPreview(URL.createObjectURL(f)); }
+                }}/>
+              </div>
+              <div className="px-10 pb-10 relative">
+                <div className="w-40 h-40 rounded-full border-8 border-white bg-white absolute -top-20 left-10 shadow-xl overflow-hidden flex items-center justify-center group cursor-pointer" onClick={()=>logoInputRef.current?.click()}>
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Building size={48} className="text-slate-200" />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="text-white" size={24} />
                   </div>
                 </div>
+                <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={(e)=>{
+                  const f=e.target.files[0]; if(f){ setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); }
+                }}/>
 
-                <div className="space-y-6">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Detail Jalan / Komplek</label>
-                    <textarea value={instData.alamat} onChange={(e) => setInstData({...instData, alamat: e.target.value})} className="w-full px-5 py-4 rounded-2xl border border-slate-200 h-24 resize-none outline-none" />
-                  </div>
-                  <RegionSelect formData={instData} handleChange={(e) => setInstData({...instData, [e.target.name]: e.target.value})} isIndonesia={true} />
-                </div>
-
-                <div className="flex justify-end pr-2">
-                  <button type="submit" disabled={isSubmitting} className="px-10 py-5 bg-brand-primary text-white rounded-[1.5rem] font-black shadow-2xl shadow-blue-100 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:bg-slate-300">
-                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                    SIMPAN PROFIL INSTITUSI
+                <div className="flex justify-end pt-6">
+                  <button 
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-full font-black text-[10px] tracking-widest uppercase hover:bg-blue-700 transition-all shadow-lg"
+                  >
+                    {isEditing ? 'Batal Edit' : 'Edit Profil'}
                   </button>
                 </div>
 
-                {instId && savedInstData && (
-                  <div className="mt-12 pt-10 border-t border-slate-100 animate-in fade-in duration-700">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                      <ShieldCheck size={18} className="text-brand-primary" /> Audit Eksekutif: Riwayat Profil Tersimpan
-                    </h3>
-                    
-                    <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
-                       <div className="grid grid-cols-[140px_10px_1fr] md:grid-cols-[200px_10px_1fr] items-center gap-y-5 text-sm">
-                          
-                          <div className="font-bold text-slate-500 tracking-wide">Nama Institusi</div>
-                          <div className="font-bold text-slate-300">:</div>
-                          <div className="font-black text-slate-800 text-base">{savedInstData.nama || '-'}</div>
-
-                          <div className="font-bold text-slate-500 tracking-wide">Email Resmi</div>
-                          <div className="font-bold text-slate-300">:</div>
-                          <div className="font-bold text-slate-700 flex items-center gap-2">
-                             {savedInstData.email || '-'}
-                          </div>
-
-                          <div className="font-bold text-slate-500 tracking-wide">Nomor Telepon</div>
-                          <div className="font-bold text-slate-300">:</div>
-                          <div className="font-bold text-slate-700">
-                             {savedInstData.no_hp || '-'}
-                          </div>
-
-                          <div className="font-bold text-slate-500 tracking-wide self-start pt-1">Detail Alamat</div>
-                          <div className="font-bold text-slate-300 self-start pt-1">:</div>
-                          <div className="font-bold text-slate-700 flex flex-col gap-1.5 leading-relaxed">
-                            <span>{savedInstData.alamat || '-'}</span>
-                            <span className="text-xs text-slate-500">
-                              {savedInstData.kelurahan && `${savedInstData.kelurahan}, `}
-                              {savedInstData.kecamatan && `Kec. ${savedInstData.kecamatan}, `}
-                              {savedInstData.kota_kabupaten && `${savedInstData.kota_kabupaten}, `}
-                              {savedInstData.provinsi}
-                            </span>
-                          </div>
-
-                          <div className="font-bold text-slate-500 tracking-wide self-start pt-1">Deskripsi & Motto</div>
-                          <div className="font-bold text-slate-300 self-start pt-1">:</div>
-                          <div className="font-medium text-slate-600 leading-relaxed italic">
-                             {savedInstData.deskripsi ? `"${savedInstData.deskripsi}"` : '-'}
-                          </div>
-
-                       </div>
+                <div className="mt-16">
+                  <h1 className="text-3xl font-black text-slate-900 tracking-tight">{instData.nama || 'Nama Institusi'}</h1>
+                  <p className="text-slate-500 font-medium mt-1">{instData.deskripsi || 'Belum ada deskripsi.'}</p>
+                  
+                  <div className="flex flex-wrap gap-4 mt-6">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+                      <Mail size={14} className="text-blue-500" /> {instData.email || '-'}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+                      <Phone size={14} className="text-blue-500" /> {instData.no_hp || '-'}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
+                      <MapPin size={14} className="text-blue-500" /> {instData.kota_kabupaten || 'Lokasi belum diatur'}
                     </div>
                   </div>
-                )}
-              </motion.form>
-            ) : (
-              <motion.form 
-                key="tracer"
-                initial={{ opacity: 0, x: 10 }} 
-                animate={{ opacity: 1, x: 0 }} 
-                exit={{ opacity: 0, x: -10 }}
-                onSubmit={handleSaveTracer}
-                className="space-y-12"
-              >
-                {/* Switch & Status */}
-                <section className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-5">
-                    <div className={`p-4 rounded-2xl ${tracerData.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                      {tracerData.is_active ? <ShieldCheck size={32} /> : <Clock size={32} />}
+                </div>
+              </div>
+            </div>
+
+            {isEditing && (
+              <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-lg animate-in slide-in-from-top-4 duration-500">
+                <form onSubmit={handleSaveInstitusi} className="space-y-10">
+                   <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+                      <h2 className="text-xl font-black text-slate-800 uppercase tracking-widest">Formulir Pengaturan</h2>
+                      <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-slate-900 text-white rounded-full font-black text-[10px] tracking-widest uppercase hover:bg-black transition-all flex items-center gap-2">
+                        {isSubmitting ? <Loader2 className="animate-spin" size={14}/> : <Save size={14}/>} SIMPAN PERUBAHAN
+                      </button>
+                   </div>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Resmi Institusi</label>
+                        <input value={instData.nama} onChange={e=>setInstData({...instData,nama:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all"/>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Kontak</label>
+                        <input value={instData.email} onChange={e=>setInstData({...instData,email:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all"/>
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Deskripsi Singkat</label>
+                        <textarea value={instData.deskripsi} onChange={e=>setInstData({...instData,deskripsi:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-medium h-32 resize-none transition-all"/>
+                      </div>
+                   </div>
+
+                   <div className="pt-6 border-t border-slate-100">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Detail Wilayah & Media Sosial</h3>
+                      <div className="space-y-8">
+                        <RegionSelect formData={instData} handleChange={e=>setInstData({...instData,[e.target.name]:e.target.value})} isIndonesia={true} />
+                        <SocialMediaEditor value={instData.social_media} onChange={val=>setInstData({...instData,social_media:val})} />
+                      </div>
+                   </div>
+                </form>
+              </div>
+            )}
+
+            {!isEditing && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <ShieldCheck size={14} className="text-blue-500" /> Tentang Institusi
+                  </h3>
+                  <p className="text-slate-700 leading-relaxed font-medium">{instData.deskripsi || 'Tidak ada deskripsi.'}</p>
+                  
+                  <div className="mt-10 pt-10 border-t border-slate-100">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Alamat Lengkap</h3>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
+                        <MapPin size={24} />
+                      </div>
+                      <div>
+                        <p className="text-slate-900 font-bold">{instData.alamat || '-'}</p>
+                        <p className="text-slate-500 text-sm">
+                          {[instData.kecamatan, instData.kota_kabupaten, instData.provinsi].filter(Boolean).join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-xl h-fit">
+                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-6">Media Sosial</h3>
+                  <div className="space-y-4">
+                    {instData.social_media?.length > 0 ? instData.social_media.map((sm, i) => (
+                      <a key={i} href={sm.link} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/10 group">
+                        <span className="text-blue-400 group-hover:scale-110 transition-transform">
+                          {getPlatformIcon(sm.platform, 18)}
+                        </span>
+                        <span className="text-xs font-bold tracking-tight">{sm.username || sm.platform}</span>
+                      </a>
+                    )) : <p className="text-white/40 text-[10px] italic">Belum ada data.</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="tracer"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm"
+          >
+            <form onSubmit={handleSaveTracer} className="space-y-10">
+               <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Pengaturan Tracer Study</h2>
+                    <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Konfigurasi Periode & Pesan Sambutan</p>
+                  </div>
+                  <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-blue-600 text-white rounded-full font-black text-[10px] tracking-widest uppercase hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2">
+                    {isSubmitting ? <Loader2 className="animate-spin" size={14}/> : <Save size={14}/>} SIMPAN KONFIGURASI
+                  </button>
+               </div>
+
+               <div className="bg-slate-50 border border-slate-200 p-8 rounded-3xl flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${tracerData.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                      {tracerData.is_active ? <ShieldCheck size={28}/> : <Clock size={28}/>}
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Status Tracer Study</h3>
-                      <p className="text-sm text-slate-500">{tracerData.is_active ? 'Saat ini sedang TERBUKA untuk alumni.' : 'Saat ini sedang DITUTUP (Tampilan Pemeliharaan).'}</p>
+                      <p className="text-sm font-black text-slate-800 uppercase tracking-tight">Status Kuesioner</p>
+                      <p className="text-xs text-slate-500 font-medium">{tracerData.is_active ? 'Kuesioner aktif dan dapat diakses alumni.' : 'Kuesioner ditutup sementara.'}</p>
                     </div>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer scale-125">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={tracerData.is_active}
-                      onChange={(e) => setTracerData({...tracerData, is_active: e.target.checked})}
-                    />
-                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={tracerData.is_active} onChange={e=>setTracerData({...tracerData,is_active:e.target.checked})}/>
+                    <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
-                </section>
+               </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2"><Calendar size={12}/> Tanggal Mulai</label>
-                    <input 
-                      type="datetime-local" 
-                      value={tracerData.start_date}
-                      onChange={(e) => setTracerData({...tracerData, start_date: e.target.value})}
-                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-50" 
-                    />
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Periode Mulai</label>
+                    <input type="datetime-local" value={tracerData.start_date} onChange={e=>setTracerData({...tracerData,start_date:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all"/>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2"><Clock size={12}/> Tanggal Berakhir</label>
-                    <input 
-                      type="datetime-local" 
-                      value={tracerData.end_date}
-                      onChange={(e) => setTracerData({...tracerData, end_date: e.target.value})}
-                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-50" 
-                    />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Periode Berakhir</label>
+                    <input type="datetime-local" value={tracerData.end_date} onChange={e=>setTracerData({...tracerData,end_date:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all"/>
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-2"><Globe size={12}/> Target Tahun Lulus (Opsional)</label>
-                  <input 
-                    type="text" 
-                    value={tracerData.target_years}
-                    onChange={(e) => setTracerData({...tracerData, target_years: e.target.value})}
-                    placeholder="Contoh: 2020-2024"
-                    className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-50" 
-                  />
-                  <p className="text-[10px] text-slate-400 font-bold px-2 uppercase tracking-widest mt-2">{`// Teks ini akan tampil sebagai panduan di sisi alumni.`}</p>
-                </div>
-
-                <div className="space-y-8 pt-4">
-                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Judul Kuesioner</label>
-                    <input 
-                      value={tracerData.title}
-                      onChange={(e) => setTracerData({...tracerData, title: e.target.value})}
-                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 outline-none focus:ring-4 focus:ring-blue-50 font-black text-slate-800"
-                    />
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Judul Kuesioner (Landing Page)</label>
+                    <input value={tracerData.title} onChange={e=>setTracerData({...tracerData,title:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-bold transition-all"/>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Pesan Sambutan (Welcome Message)</label>
-                    <textarea 
-                      value={tracerData.welcome_message}
-                      onChange={(e) => setTracerData({...tracerData, welcome_message: e.target.value})}
-                      className="w-full px-5 py-4 rounded-2xl border border-slate-200 h-32 resize-none outline-none focus:ring-4 focus:ring-blue-50"
-                    />
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Pesan Sambutan Alumni</label>
+                    <textarea value={tracerData.welcome_message} onChange={e=>setTracerData({...tracerData,welcome_message:e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 font-medium h-32 resize-none transition-all"/>
                   </div>
-                </div>
-
-                <div className="flex justify-end pr-2">
-                  <button type="submit" disabled={isSubmitting} className="px-10 py-5 bg-brand-primary text-white rounded-[1.5rem] font-black shadow-2xl shadow-blue-100 hover:scale-105 active:scale-95 transition-all flex items-center gap-3 disabled:bg-slate-300">
-                    {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                    SIMPAN PENGATURAN KUESIONER
-                  </button>
-                </div>
-              </motion.form>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+               </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

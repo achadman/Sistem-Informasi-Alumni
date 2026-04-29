@@ -50,10 +50,18 @@ export const getCoordinates = (provinsi, kota) => {
   // Default to Java center if not found
   let baseCoords = { lat: -2.5489, lng: 118.0149 }; 
 
-  const provData = geoData.provinces.find(p => 
-    p.name.toLowerCase().includes(provinsi?.toLowerCase()) || 
-    provinsi?.toLowerCase().includes(p.name.toLowerCase())
-  );
+  const searchStr = `${provinsi || ''} ${kota || ''}`.toLowerCase();
+
+  const provData = geoData.provinces.find(p => {
+    const provName = p.name.toLowerCase();
+    const capitalName = p.capital.toLowerCase();
+    
+    // Exact or partial matches for province or capital
+    return searchStr.includes(provName) || 
+           searchStr.includes(capitalName) ||
+           provName.includes(searchStr.replace(/\s+/g, '')) ||
+           (provinsi && provName.includes(provinsi.toLowerCase()));
+  });
 
   if (provData) {
     baseCoords = { lat: provData.lat, lng: provData.lng };

@@ -9,7 +9,8 @@ export default function AutocompleteSearch({
   onSelect,
   extraFilter = "",
   disabled = false,
-  valueDisplay = ""
+  valueDisplay = "",
+  direction = "down"
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -142,7 +143,7 @@ export default function AutocompleteSearch({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl max-h-60 overflow-y-auto overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className={`absolute z-50 w-full ${direction === 'up' ? 'bottom-full mb-2' : 'mt-2'} bg-white border border-slate-100 rounded-2xl shadow-xl max-h-60 overflow-y-auto overflow-hidden animate-in fade-in ${direction === 'up' ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} duration-200`}>
           {loading ? (
              <div className="p-8 text-center text-sm text-slate-400">
                 <Loader2 className="animate-spin mx-auto mb-2 text-blue-500" size={24} />
