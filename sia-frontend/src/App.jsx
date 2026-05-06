@@ -1,32 +1,37 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Activate from './pages/Activate';
-import TracerStudy from './pages/TracerStudy';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminMap from './pages/AdminMap';
-import AlumniList from './pages/AlumniList';
-import AlumniDetail from './pages/AlumniDetail';
-import MasterNIM from './pages/MasterNIM';
-import AdminSettings from './pages/AdminSettings';
-import AlumniProfile from './pages/AlumniProfile';
-import AlumniJobs from './pages/AlumniJobs';
-import IndustryDashboard from './pages/IndustryDashboard';
-import IndustryRegister from './pages/IndustryRegister';
-import IndustryAlumniSearch from './pages/IndustryAlumniSearch';
-import IndustryCompanyProfile from './pages/IndustryCompanyProfile';
-import IndustryJobPostings from './pages/IndustryJobPostings';
-import IndustryCreateJob from './pages/IndustryCreateJob';
-import IndustryApplicants from './pages/IndustryApplicants';
-import AdminCompanyVerification from './pages/AdminCompanyVerification';
-import MasterAddress from './pages/MasterAddress';
 import Layout from './components/Layout';
-import Settings from './pages/Settings';
-import AdminKuesionerList from './pages/AdminKuesionerList';
-import AdminKuesionerBuilder from './pages/AdminKuesionerBuilder';
-import AdminKuesionerResults from './pages/AdminKuesionerResults';
+import PageLoader from './components/PageLoader';
+import { Toaster } from 'sonner';
+
+// Lazy load pages
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Activate = lazy(() => import('./pages/Activate'));
+const TracerStudy = lazy(() => import('./pages/TracerStudy'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminMap = lazy(() => import('./pages/AdminMap'));
+const AlumniList = lazy(() => import('./pages/AlumniList'));
+const AlumniDetail = lazy(() => import('./pages/AlumniDetail'));
+const MasterNIM = lazy(() => import('./pages/MasterNIM'));
+const AdminSettings = lazy(() => import('./pages/AdminSettings'));
+const AlumniProfile = lazy(() => import('./pages/AlumniProfile'));
+const AlumniJobs = lazy(() => import('./pages/AlumniJobs'));
+const IndustryDashboard = lazy(() => import('./pages/IndustryDashboard'));
+const IndustryRegister = lazy(() => import('./pages/IndustryRegister'));
+const IndustryAlumniSearch = lazy(() => import('./pages/IndustryAlumniSearch'));
+const IndustryCompanyProfile = lazy(() => import('./pages/IndustryCompanyProfile'));
+const IndustryJobPostings = lazy(() => import('./pages/IndustryJobPostings'));
+const IndustryCreateJob = lazy(() => import('./pages/IndustryCreateJob'));
+const IndustryApplicants = lazy(() => import('./pages/IndustryApplicants'));
+const AdminCompanyVerification = lazy(() => import('./pages/AdminCompanyVerification'));
+const MasterAddress = lazy(() => import('./pages/MasterAddress'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AdminKuesionerList = lazy(() => import('./pages/AdminKuesionerList'));
+const AdminKuesionerBuilder = lazy(() => import('./pages/AdminKuesionerBuilder'));
+const AdminKuesionerResults = lazy(() => import('./pages/AdminKuesionerResults'));
+const CompanyDetail = lazy(() => import('./pages/CompanyDetail'));
 
 const ProtectedRoute = ({ children }) => {
   const { isValid } = useAuthStore();
@@ -65,7 +70,9 @@ const IndustryRoute = ({ children }) => {
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <Toaster position="top-center" expand={false} richColors />
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
         <Route 
           path="/login" 
           element={
@@ -95,6 +102,7 @@ function App() {
           <Route path="/alumni-directory" element={<AlumniList />} />
           <Route path="/alumni/:id" element={<AlumniDetail />} />
           <Route path="/map" element={<AdminMap />} />
+          <Route path="/perusahaan/:id" element={<CompanyDetail />} />
           
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/alumni" element={<AdminRoute><AlumniList /></AdminRoute>} />
@@ -108,6 +116,7 @@ function App() {
           {/* Aliasing older route for compatibility */}
           <Route path="/admin/profile-institusi" element={<AdminRoute><AdminSettings /></AdminRoute>} />
           <Route path="/admin/perusahaan" element={<AdminRoute><AdminCompanyVerification /></AdminRoute>} />
+          <Route path="/admin/perusahaan/:id" element={<AdminRoute><CompanyDetail /></AdminRoute>} />
           <Route path="/admin/alamat" element={<AdminRoute><MasterAddress /></AdminRoute>} />
 
           {/* Industry Routes */}
@@ -123,6 +132,7 @@ function App() {
         
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

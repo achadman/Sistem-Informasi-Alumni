@@ -314,33 +314,27 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Fakultas</label>
-                  <select 
+                  <CustomSelect 
                     value={selectedFakultasId}
                     onChange={(e) => {
                       setSelectedFakultasId(e.target.value);
-                      setFormData(prev => ({ ...prev, prodi: '' })); // Reset prodi when fakultas changes!
+                      setFormData(prev => ({ ...prev, prodi: '' }));
                     }}
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 appearance-none font-medium"
-                  >
-                    <option value="">-- Pilih Fakultas --</option>
-                    {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
-                  </select>
+                    options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
+                    placeholder="-- Pilih Fakultas --"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Program Studi</label>
-                    <select 
+                    <CustomSelect 
                       name="prodi" 
                       value={formData.prodi} 
                       onChange={handleChange}
                       disabled={!selectedFakultasId}
-                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-700 text-sm focus:outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 appearance-none font-medium disabled:opacity-50"
-                    >
-                      <option value="">-- Pilih Prodi --</option>
-                      {prodiList.filter(p => p.fakultas_id === selectedFakultasId).map(p => (
-                        <option key={p.id} value={p.nama}>{p.nama}</option>
-                      ))}
-                    </select>
+                      options={prodiList.filter(p => p.fakultas_id === selectedFakultasId).map(p => ({ value: p.nama, label: p.nama }))}
+                      placeholder="-- Pilih Prodi --"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">IPK</label>

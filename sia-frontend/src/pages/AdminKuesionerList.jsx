@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Edit2, BarChart2, Calendar, FileQuestion, Clock, Trash2, ShieldCheck, Loader2 } from 'lucide-react';
 import { pb } from '../lib/pb';
 import { motion } from 'framer-motion';
@@ -118,21 +118,21 @@ export default function AdminKuesionerList() {
               <p className="text-sm text-slate-500 line-clamp-2 mb-6 flex-1">{q.description}</p>
 
               <div className="flex items-center justify-between border-t border-slate-50 pt-4 mt-auto">
-                <button 
-                  onClick={() => navigate(`/admin/kuesioner/${q.id}/edit`)}
-                  className="flex flex-col items-center gap-1.5 p-2 text-slate-400 hover:text-brand-primary transition-colors flex-1"
+                <Link 
+                  to={`/admin/kuesioner/${q.id}/edit`}
+                  className="flex flex-col items-center gap-1.5 p-2 text-slate-400 hover:text-blue-600 transition-colors flex-1"
                 >
                   <Edit2 size={18} />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Builder</span>
-                </button>
+                </Link>
                 <div className="w-px h-8 bg-slate-100 mx-2"></div>
-                <button 
-                  onClick={() => navigate(`/admin/kuesioner/${q.id}/results`)}
+                <Link 
+                  to={`/admin/kuesioner/${q.id}/results`}
                   className="flex flex-col items-center gap-1.5 p-2 text-slate-400 hover:text-emerald-500 transition-colors flex-1"
                 >
                   <BarChart2 size={18} />
                   <span className="text-[10px] font-bold uppercase tracking-wider">Hasil</span>
-                </button>
+                </Link>
               </div>
             </motion.div>
           ))}

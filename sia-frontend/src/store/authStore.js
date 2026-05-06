@@ -15,7 +15,9 @@ export const useAuthStore = create((set) => ({
   },
   register: async (email, password, name, role = 'industri') => {
     try {
+      const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Math.floor(Math.random() * 1000);
       const userData = {
+        username,
         email,
         password,
         passwordConfirm: password,

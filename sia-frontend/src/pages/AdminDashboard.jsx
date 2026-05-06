@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { 
   Briefcase, 
@@ -13,9 +13,61 @@ import {
   Layers,
   PieChart as PieChartIcon,
   BarChart as BarChartIcon,
-  Info
+  Info,
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { pb } from '../lib/pb';
+import { AnimatePresence, motion } from 'framer-motion';
+
+// ─── Reusable Custom Dropdown ─────────────────────────────────────────────────
+function CustomSelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const selected = options.find(o => o.value === value) || options[0];
+
+  return (
+    <div className="relative w-full sm:w-64" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-2.5 bg-surface border border-border-subtle rounded-xl text-sm font-bold text-primary hover:bg-main transition-colors shadow-sm"
+      >
+        <span className="truncate">{selected.label}</span>
+        <ChevronDown size={15} className={`text-secondary shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 left-0 right-0 mt-1.5 bg-elevated border border-border-subtle rounded-xl shadow-xl overflow-hidden py-1"
+          >
+            {options.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => { onChange(opt.value); setOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-left transition-colors
+                  ${ opt.value === value ? 'text-blue-600 bg-blue-50/60' : 'text-secondary hover:bg-surface hover:text-primary' }`}
+              >
+                {opt.value === value && <Check size={13} className="text-blue-600 shrink-0" />}
+                <span className={opt.value !== value ? 'ml-4' : ''}>{opt.label}</span>
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -39,17 +91,26 @@ export default function AdminDashboard() {
   const [activeBarChart, setActiveBarChart] = useState('geografis'); // 'geografis' | 'prodi' | 'dropout' | 'gender'
 
   useEffect(() => {
-    fetchDashboardData();
+    const controller = new AbortController();
+    fetchDashboardData(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (signal) => {
     setLoading(true);
     try {
+      // Ambil hanya field yang diperlukan untuk mengurangi payload (BUG-01 fix)
       const [alumniRecords, tracerRecords, fakultasList, prodiList] = await Promise.all([
-        pb.collection('alumni').getFullList(),
-        pb.collection('tracer_studies').getFullList(),
-        pb.collection('fakultas').getFullList({ sort: 'nama' }),
-        pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama' })
+        pb.collection('alumni').getFullList({
+          fields: 'id,status_kerja,tahun_lulus,gender,provinsi,prodi,keterangan,semester_dropout',
+          requestKey: 'dashboard-alumni',
+        }),
+        pb.collection('tracer_studies').getFullList({
+          fields: 'id,alumni_id,status',
+          requestKey: 'dashboard-tracer',
+        }),
+        pb.collection('fakultas').getFullList({ sort: 'nama', requestKey: 'dashboard-fakultas' }),
+        pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama', requestKey: 'dashboard-prodi' })
       ]);
 
       const workCounts = alumniRecords.reduce((acc, curr) => {
@@ -101,7 +162,7 @@ export default function AdminDashboard() {
       });
 
       // AGGREGATE CHURN RATE OVERALL
-      const totalDO = alumniRecords.filter(a => a.keterangan === 'Drop Out (DO)').length;
+      const totalDO = alumniRecords.filter(a => a.keterangan && a.keterangan.trim().toLowerCase() === 'drop out (do)').length;
       const totalAlumniRecords = alumniRecords.length || 1;
       const churnRateCalculated = ((totalDO / totalAlumniRecords) * 100).toFixed(1) + '%';
 
@@ -419,7 +480,7 @@ export default function AdminDashboard() {
     <div className="space-y-6 md:space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Executive Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Dasbor Utama</h1>
           <p className="text-sm text-secondary mt-1 font-medium">Analisis mendalam sebaran karir alumni & statistik institusi.</p>
         </div>
         <div className="flex gap-3">
@@ -437,14 +498,14 @@ export default function AdminDashboard() {
               <h3 className="font-black text-primary flex items-center gap-2">
                  <PieChartIcon size={18} className="text-blue-500" /> Komposisi Data
               </h3>
-              <select 
-                 value={activePieChart} 
-                 onChange={(e) => setActivePieChart(e.target.value)}
-                 className="w-full sm:w-64 bg-main border border-border-subtle rounded-xl px-3 py-2 text-sm font-bold text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer hover:bg-surface transition-colors"
-              >
-                 <option value="karir">Distribusi Karir (Tracer)</option>
-                 <option value="fakultas">Rasio Fakultas</option>
-              </select>
+              <CustomSelect
+                  value={activePieChart}
+                  onChange={setActivePieChart}
+                  options={[
+                    { value: 'karir', label: 'Distribusi Karir (Tracer)' },
+                    { value: 'fakultas', label: 'Rasio Fakultas' },
+                  ]}
+               />
             </div>
 
             <div className="flex-1 flex items-center justify-center min-h-[320px]">
@@ -485,16 +546,16 @@ export default function AdminDashboard() {
               <h3 className="font-black text-primary flex items-center gap-2">
                  <BarChartIcon size={18} className="text-indigo-500" /> Distribusi & Tren
               </h3>
-              <select 
-                 value={activeBarChart} 
-                 onChange={(e) => setActiveBarChart(e.target.value)}
-                 className="w-full sm:w-64 bg-main border border-border-subtle rounded-xl px-3 py-2 text-sm font-bold text-primary focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none cursor-pointer hover:bg-surface transition-colors"
-              >
-                 <option value="geografis">Sebaran Geografis Alumni</option>
-                 <option value="prodi">Rekapitulasi Program Studi</option>
-                 <option value="dropout">Analisis Drop Out (DO)</option>
-                 <option value="gender">Demografi Gender per Angkatan</option>
-              </select>
+              <CustomSelect
+                  value={activeBarChart}
+                  onChange={setActiveBarChart}
+                  options={[
+                    { value: 'geografis', label: 'Sebaran Geografis Alumni' },
+                    { value: 'prodi', label: 'Rekapitulasi Program Studi' },
+                    { value: 'dropout', label: 'Analisis Drop Out (DO)' },
+                    { value: 'gender', label: 'Demografi Gender per Angkatan' },
+                  ]}
+               />
             </div>
 
             <div className="flex-1 flex items-center justify-center min-h-[320px] w-full relative overflow-hidden">

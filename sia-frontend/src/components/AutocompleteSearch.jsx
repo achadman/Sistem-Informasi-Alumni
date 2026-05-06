@@ -143,37 +143,46 @@ export default function AutocompleteSearch({
       </div>
 
       {isOpen && (
-        <div className={`absolute z-50 w-full ${direction === 'up' ? 'bottom-full mb-2' : 'mt-2'} bg-white border border-slate-100 rounded-2xl shadow-xl max-h-60 overflow-y-auto overflow-hidden animate-in fade-in ${direction === 'up' ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} duration-200`}>
+        <div className={`absolute z-50 w-full ${direction === 'up' ? 'bottom-full mb-2' : 'mt-2'} bg-white border border-slate-200 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] max-h-72 overflow-y-auto overflow-hidden animate-in fade-in ${direction === 'up' ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'} duration-200`}>
           {loading ? (
-             <div className="p-8 text-center text-sm text-slate-400">
-                <Loader2 className="animate-spin mx-auto mb-2 text-blue-500" size={24} />
-                Mencari data...
+             <div className="p-10 text-center text-sm text-slate-400">
+                <Loader2 className="animate-spin mx-auto mb-4 text-blue-500" size={32} />
+                <p className="font-bold">Mencari data...</p>
              </div>
           ) : fetchError ? (
-            <div className="p-6 text-center">
-               <p className="text-sm font-bold text-red-500">Gagal Mengambil Data</p>
-               <p className="text-[10px] text-slate-400 mt-1 italic">Pastikan Koleksi PB bersifat Publik (API Rules)</p>
+            <div className="p-8 text-center">
+               <AlertCircle size={32} className="mx-auto mb-3 text-red-400" />
+               <p className="text-sm font-black text-red-600">Gagal Mengambil Data</p>
+               <p className="text-[10px] text-slate-400 mt-1 italic">Pastikan koneksi internet stabil</p>
             </div>
           ) : results.length === 0 ? (
-            <div className="p-6 text-center text-sm text-slate-400 flex flex-col items-center gap-2">
-               <AlertCircle size={20} className="text-slate-300" />
-               <span>Tidak ada data yang cocok.</span>
+            <div className="p-10 text-center text-sm text-slate-400 flex flex-col items-center gap-3">
+               <AlertCircle size={28} className="text-slate-200" />
+               <span className="font-bold">Data tidak ditemukan</span>
             </div>
           ) : (
-            results.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleSelect(item)}
-                className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-b-0 group"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-100 transition-colors">
-                  <MapPin size={14} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-700 truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight">{item.name}</p>
-                </div>
-              </button>
-            ))
+            <div className="py-2">
+              {results.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSelect(item)}
+                  className="w-full px-6 py-4.5 text-left hover:bg-blue-50/50 transition-all flex items-center gap-4 border-b border-slate-50 last:border-b-0 group active:bg-blue-100"
+                >
+                  <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                    <MapPin size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-black text-slate-700 truncate group-hover:text-blue-700 transition-colors uppercase">
+                      {item.name}
+                    </p>
+                    <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5 group-hover:text-blue-300">
+                      Wilayah Terverifikasi
+                    </p>
+                  </div>
+                  <Check size={18} className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
       )}

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
+import CustomSelect from '../components/CustomSelect';
 
 const STATUS_LABELS = {
   bekerja: { label: 'Bekerja', color: 'bg-emerald-100 text-emerald-700' },
@@ -330,73 +331,67 @@ export default function IndustryAlumniSearch() {
               {/* Fakultas */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Fakultas</label>
-                <select
+                <CustomSelect
                   value={filters.fakultasId}
                   onChange={(e) => setFilters(f => ({ ...f, fakultasId: e.target.value, prodi: '' }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
-                >
-                  <option value="">Semua Fakultas</option>
-                  {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
-                </select>
+                  options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
+                  placeholder="Semua Fakultas"
+                />
               </div>
 
               {/* Program Studi */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Prodi</label>
-                <select
+                <CustomSelect
                   value={filters.prodi}
                   onChange={(e) => setFilters(f => ({ ...f, prodi: e.target.value }))}
                   disabled={!filters.fakultasId}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 disabled:opacity-50"
-                >
-                  <option value="">Semua Prodi</option>
-                  {prodiList.filter(p => p.fakultas_id === filters.fakultasId).map(p => <option key={p.id} value={p.nama}>{p.nama}</option>)}
-                </select>
+                  options={prodiList.filter(p => p.fakultas_id === filters.fakultasId).map(p => ({ value: p.nama, label: p.nama }))}
+                  placeholder="Semua Prodi"
+                />
               </div>
 
               {/* Status Kerja */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Status</label>
-                <select
+                <CustomSelect
                   value={filters.status}
                   onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
-                >
-                  <option value="">Semua Status</option>
-                  <option value="belum_bekerja">Belum Bekerja</option>
-                  <option value="bekerja">Bekerja</option>
-                  <option value="wirausaha">Wirausaha</option>
-                  <option value="melanjutkan_studi">Lanjut Studi</option>
-                </select>
+                  options={[
+                    { value: 'belum_bekerja', label: 'Belum Bekerja' },
+                    { value: 'bekerja', label: 'Bekerja' },
+                    { value: 'wirausaha', label: 'Wirausaha' },
+                    { value: 'melanjutkan_studi', label: 'Lanjut Studi' }
+                  ]}
+                  placeholder="Semua Status"
+                />
               </div>
 
               {/* IPK Minimum */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">IPK Min</label>
-                <select
+                <CustomSelect
                   value={filters.minIpk}
                   onChange={(e) => setFilters(f => ({ ...f, minIpk: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
-                >
-                  <option value="">Semua IPK</option>
-                  <option value="3.5">3.50 ke atas</option>
-                  <option value="3.0">3.00 ke atas</option>
-                  <option value="2.75">2.75 ke atas</option>
-                  <option value="2.5">2.50 ke atas</option>
-                </select>
+                  options={[
+                    { value: '3.5', label: '3.50 ke atas' },
+                    { value: '3.0', label: '3.00 ke atas' },
+                    { value: '2.75', label: '2.75 ke atas' },
+                    { value: '2.5', label: '2.50 ke atas' }
+                  ]}
+                  placeholder="Semua IPK"
+                />
               </div>
 
               {/* Angkatan */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Angkatan</label>
-                <select
+                <CustomSelect
                   value={filters.angkatan}
                   onChange={(e) => setFilters(f => ({ ...f, angkatan: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
-                >
-                  <option value="">Semua Angkatan</option>
-                  {angkatanOptions.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
+                  options={angkatanOptions.map(a => ({ value: a, label: a }))}
+                  placeholder="Semua Angkatan"
+                />
               </div>
 
               {/* Open to Work */}

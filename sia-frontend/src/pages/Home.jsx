@@ -286,14 +286,9 @@ export default function Home() {
           
           {/* Layanan Karir / Quick Actions */}
           <section className="bg-surface border border-border-subtle rounded-3xl p-6 md:p-8 hover-glow transition-all">
-             <div className="flex items-center gap-4 mb-6 relative z-10">
-                <div className="w-12 h-12 bg-main rounded-2xl flex items-center justify-center text-brand-primary border border-border-subtle shadow-sm">
-                    <Building2 size={24} />
-                </div>
-                <div>
-                   <h2 className="text-xl font-black text-primary">Layanan Karir</h2>
-                   <p className="text-xs text-secondary font-medium mt-0.5">Akses cepat menuju pusat bantuan alumni.</p>
-                </div>
+             <div className="mb-6 relative z-10">
+                <h2 className="text-xl font-black text-primary uppercase tracking-tight">Layanan Karir</h2>
+                <p className="text-xs text-secondary font-medium mt-0.5">Akses cepat menuju pusat bantuan alumni.</p>
              </div>
              <p className="text-secondary text-sm leading-relaxed mb-6 max-w-2xl">
                 Pusat data karir terintegrasi memudahkan Anda untuk melacak lamaran pekerjaan, melihat statistik sebaran alumni, dan berpartisipasi dalam program tracer study tahunan.
@@ -318,10 +313,7 @@ export default function Home() {
           {/* Latest Jobs Section */}
           <section className="bg-surface border border-border-subtle rounded-3xl p-6 md:p-8 hover-glow transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-               <h2 className="text-xl font-black text-primary flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                   <Briefcase size={16} />
-                 </div>
+               <h2 className="text-xl font-black text-primary uppercase tracking-tight">
                  Lowongan Terbaru
                </h2>
                <button onClick={() => navigate('/lowongan')} className="text-[11px] px-4 py-2 rounded-xl bg-main border border-border-subtle font-bold text-secondary hover:text-primary hover:bg-surface transition-all active:scale-95 shrink-0 self-start sm:self-auto">Lihat Semua Pekerjaan</button>
@@ -364,10 +356,7 @@ export default function Home() {
           {/* Riwayat Lamaran Pekerjaan */}
           <section className="bg-surface border border-border-subtle rounded-3xl p-6 md:p-8 hover-glow transition-all">
             <div className="flex items-center justify-between mb-6">
-               <h2 className="text-xl font-black text-primary flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                   <CheckCircle2 size={16} />
-                 </div>
+               <h2 className="text-xl font-black text-primary uppercase tracking-tight">
                  Riwayat Lamaran
                </h2>
             </div>
@@ -437,9 +426,9 @@ export default function Home() {
         <div className="lg:col-span-4 space-y-6 lg:space-y-8">
            
            {/* Profile Widget */}
-           <div className="bg-surface rounded-3xl p-6 lg:p-8 border border-border-subtle hover-glow transition-all relative overflow-hidden">
-              <h3 className="text-lg font-black text-primary mb-1">Status Profil</h3>
-              <p className="text-xs text-secondary font-medium mb-6">Kelengkapan data Anda saat ini</p>
+            <div className="bg-surface rounded-3xl p-6 lg:p-8 border border-border-subtle hover-glow transition-all relative overflow-hidden">
+               <h3 className="text-lg font-black text-primary uppercase tracking-tight mb-1">Status Profil</h3>
+               <p className="text-xs text-secondary font-medium mb-6">Kelengkapan data Anda saat ini</p>
               
               <div className="space-y-3">
                  <div className="bg-main rounded-xl p-4 flex items-center justify-between border border-border-subtle">
@@ -482,7 +471,6 @@ export default function Home() {
               </button>
            </div>
            
-           {/* Quick Links Widget */}
            <div className="bg-surface rounded-3xl p-6 lg:p-8 border border-border-subtle hover-glow transition-all">
               <h3 className="text-xs font-black text-secondary uppercase tracking-widest mb-5 border-b border-border-subtle pb-3 opacity-80">Tautan Pintasan</h3>
               <div className="space-y-3">

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
+import { formatDate } from '../lib/utils';
 
 const STATUS_OPTIONS = [
   { value: 'Pending', label: 'Antrean', color: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -263,7 +264,7 @@ export default function IndustryApplicants() {
                       </div>
                     )}
                     <span className="text-[10px] font-black text-secondary opacity-50 uppercase tracking-widest pl-1">
-                      Terdaftar: {app.created ? new Date(app.created).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Tanggal Tidak Tersedia'}
+                      Terdaftar: {formatDate(app.created)}
                     </span>
                   </div>
 

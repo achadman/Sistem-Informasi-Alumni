@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
+import CustomSelect from '../components/CustomSelect';
 import RegionSelect from '../components/RegionSelect';
 import SocialMediaEditor from '../components/SocialMediaEditor';
 
@@ -200,44 +201,81 @@ export default function IndustryCompanyProfile() {
       <input type="file" ref={bannerRef} className="hidden" accept="image/*" onChange={(e) => { const f = e.target.files[0]; if(f){ setBannerFile(f); setBannerPreview(URL.createObjectURL(f)); }}} />
 
       {/* Detail Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Deskripsi */}
-        <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
-          <h2 className="font-bold text-slate-800 text-base mb-3">Tentang Perusahaan</h2>
-          <textarea 
-            value={form.deskripsi} 
-            onChange={(e) => setForm({...form, deskripsi: e.target.value})}
-            className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm text-slate-700 leading-relaxed outline-none focus:border-blue-200 transition-all resize-none h-40"
-            placeholder="Tuliskan profil singkat perusahaan Anda..."
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column: Core Info (2/3) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Deskripsi */}
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
+            <h2 className="font-bold text-slate-800 text-base mb-4 flex items-center gap-2">
+              <Edit3 size={18} className="text-blue-600" /> Tentang Perusahaan
+            </h2>
+            <textarea 
+              value={form.deskripsi} 
+              onChange={(e) => setForm({...form, deskripsi: e.target.value})}
+              className="w-full p-6 bg-slate-50/50 border border-slate-100 rounded-[2rem] text-sm text-slate-700 leading-relaxed outline-none focus:border-blue-200 focus:bg-white transition-all resize-none h-48 shadow-inner"
+              placeholder="Tuliskan profil singkat perusahaan Anda..."
+            />
+          </div>
+
+          {/* Wilayah Operasional - Now much wider */}
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
+             <h2 className="font-bold text-slate-800 text-base mb-6 flex items-center gap-2">
+               <MapPin size={18} className="text-blue-600" /> Wilayah Operasional
+             </h2>
+             <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100">
+                <RegionSelect formData={form} handleChange={(e)=>setForm({...form, [e.target.name]: e.target.value})} isIndonesia={true} />
+             </div>
+             <div className="mt-8 space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Alamat Lengkap Kantor Pusat</label>
+                <textarea 
+                  value={form.alamat} 
+                  onChange={(e) => setForm({...form, alamat: e.target.value})}
+                  className="w-full p-6 bg-slate-50/50 border border-slate-100 rounded-[2rem] text-sm text-slate-700 leading-relaxed outline-none focus:border-blue-200 focus:bg-white transition-all resize-none h-24"
+                  placeholder="Nama jalan, nomor gedung, dsb..."
+                />
+             </div>
+          </div>
         </div>
 
-        {/* Info Kontak & Social Media */}
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
-          <h2 className="font-bold text-slate-800 text-base mb-4">Informasi Bisnis</h2>
-          <div className="space-y-6">
-            <div className="space-y-1.5">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sektor Industri</label>
-               <select value={form.industri} onChange={e=>setForm({...form, industri: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold">
-                 <option value="">Pilih Sektor</option>
-                 {sektorOptions.map(s => <option key={s} value={s}>{s}</option>)}
-               </select>
-            </div>
-            <div className="space-y-1.5">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Telepon Kantor</label>
-               <input value={form.no_hp} onChange={e=>setForm({...form, no_hp: e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold" />
+        {/* Right Column: Sidebar Info (1/3) */}
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
+            <h2 className="font-bold text-slate-800 text-base mb-6 flex items-center gap-2">
+              <Building2 size={18} className="text-blue-600" /> Informasi Bisnis
+            </h2>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Sektor Industri</label>
+                 <CustomSelect 
+                    value={form.industri} 
+                    onChange={e => setForm({...form, industri: e.target.value})} 
+                    options={sektorOptions}
+                    placeholder="Pilih Sektor Industri"
+                 />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Telepon Kantor</label>
+                 <div className="relative group">
+                   <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
+                   <input value={form.no_hp} onChange={e=>setForm({...form, no_hp: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-600 outline-none transition-all" placeholder="+62..." />
+                 </div>
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Website Resmi</label>
+                 <div className="relative group">
+                   <Globe size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-600 transition-colors" />
+                   <input value={form.website} onChange={e=>setForm({...form, website: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-blue-500/5 focus:border-blue-600 outline-none transition-all" placeholder="https://..." />
+                 </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-10 pt-8 border-t border-slate-100">
-             <h2 className="font-bold text-slate-800 text-base mb-4">Wilayah Operasional</h2>
-             <RegionSelect formData={form} handleChange={(e)=>setForm({...form, [e.target.name]: e.target.value})} isIndonesia={true} />
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
+             <h2 className="font-bold text-slate-800 text-base mb-6 flex items-center gap-2">
+               <LinkIcon size={18} className="text-blue-600" /> Tautan Terkait
+             </h2>
+             <SocialMediaEditor value={form.social_media} onChange={val => setForm({...form, social_media: val})} />
           </div>
-        </div>
-
-        {/* Social Media Editor - Full Width Below */}
-        <div className="md:col-span-3 bg-white border border-slate-200 rounded-[2.5rem] p-10 shadow-sm shadow-slate-200/50">
-           <SocialMediaEditor value={form.social_media} onChange={val => setForm({...form, social_media: val})} />
         </div>
       </div>
     </div>

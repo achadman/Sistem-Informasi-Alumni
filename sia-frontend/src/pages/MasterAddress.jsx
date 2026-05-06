@@ -217,34 +217,34 @@ export default function MasterAddress() {
   };
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 md:space-y-6">
+      <header className="flex flex-col gap-3">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Master Alamat</h1>
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Master Alamat</h1>
           <p className="text-slate-500 text-sm mt-1">Kelola data hierarki wilayah Indonesia (Provinsi sampai Desa).</p>
         </div>
-        <div className="flex items-center gap-2">
-           <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 flex items-center gap-2 text-sm font-bold">
+        <div className="flex flex-wrap items-center gap-2">
+           <div className="hidden sm:flex bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 items-center gap-2 text-sm font-bold">
               <AlertCircle size={16} />
               <span>Gunakan Import CSV untuk data massal</span>
            </div>
            <button 
              onClick={() => setIsImportModalOpen(true)}
-             className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all"
+             className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all text-sm"
            >
-             <Upload size={18} /> Import CSV
+             <Upload size={16} /> <span className="hidden xs:inline">Import</span> CSV
            </button>
            <button 
              onClick={handleAdd}
-             className="bg-brand-primary text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-200 active:scale-95 transition-all"
+             className="bg-brand-primary text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-200 active:scale-95 transition-all text-sm"
            >
-             <Plus size={18} /> Tambah Data
+             <Plus size={16} /> Tambah Data
            </button>
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl w-fit">
+      {/* Tabs — scrollable on mobile */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl overflow-x-auto custom-scrollbar w-full sm:w-fit">
          {[
            { id: 'prov', label: 'Provinsi', icon: <Map size={16} /> },
            { id: 'reg', label: 'Kota/Kab', icon: <Building size={16} /> },
@@ -254,7 +254,7 @@ export default function MasterAddress() {
            <button
              key={tab.id}
              onClick={() => handleTabChange(tab.id)}
-             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+             className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
                activeTab === tab.id ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
              }`}
            >
@@ -324,99 +324,99 @@ export default function MasterAddress() {
       )}
 
       {/* Data Table */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-slate-50 flex items-center justify-between gap-4 bg-slate-50/30">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      <div className="bg-white rounded-2xl md:rounded-3xl border border-slate-100 shadow-md overflow-hidden flex flex-col">
+        <div className="p-3 md:p-6 border-b border-slate-50 flex items-center justify-between gap-3 bg-slate-50/30">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder={`Cari nama di level ${activeTab}...`}
-              className="w-full pl-12 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all font-medium shadow-sm"
+              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all font-medium"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
-          <button onClick={() => { setPage(1); fetchData(); }} className="p-2.5 text-slate-400 hover:text-brand-primary hover:bg-slate-100 rounded-xl transition-all">
+          <button onClick={() => { setPage(1); fetchData(); }} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-slate-100 rounded-xl transition-all shrink-0">
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
 
-        <div className="overflow-x-auto min-h-[400px]">
+        <div className="overflow-x-auto min-h-[300px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white border-b border-slate-100">
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16">No.</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Wilayah</th>
+                <th className="px-3 md:px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest w-10 md:w-16">No.</th>
+                <th className="px-3 md:px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Wilayah</th>
                 {activeTab !== 'prov' && (
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{getParentLabel()}</th>
+                  <th className="hidden sm:table-cell px-3 md:px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{getParentLabel()}</th>
                 )}
-                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
+                <th className="px-3 md:px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-12 text-center text-slate-400">
                     <Loader2 className="animate-spin mx-auto mb-2" size={24} />
                     Menarik data dari server...
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-20 text-center text-slate-400">
-                    <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                       <MapPin className="text-slate-300" size={24} />
+                  <td colSpan={4} className="px-4 py-16 text-center text-slate-400">
+                    <div className="bg-slate-50 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3">
+                       <MapPin className="text-slate-300" size={22} />
                     </div>
-                    <p className="font-bold text-slate-700">Tidak ada data untuk dirender</p>
-                    {activeTab !== 'prov' && <p className="text-sm mt-1">Pastikan Anda telah memilih Wilayah Induk di panel atas.</p>}
+                    <p className="font-bold text-slate-700 text-sm">Tidak ada data untuk dirender</p>
+                    {activeTab !== 'prov' && <p className="text-xs mt-1">Pilih Wilayah Induk di panel atas.</p>}
                   </td>
                 </tr>
               ) : data.map((item, index) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-6 py-4 text-xs font-bold text-slate-400">
+                  <td className="px-3 md:px-6 py-3 md:py-4 text-xs font-bold text-slate-400">
                     {(page - 1) * 50 + index + 1}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-slate-700 text-sm">{item.name}</span>
+                  <td className="px-3 md:px-6 py-3 md:py-4">
+                    <div className="flex flex-col xs:flex-row xs:items-center gap-1 xs:gap-3">
+                      <span className="font-black text-slate-700 text-sm leading-tight">{item.name}</span>
                       
-                      {/* Drill-down shortcuts */}
+                      {/* Drill-down shortcuts — visible on tap/hover */}
                       {activeTab === 'prov' && (
                         <button 
                           onClick={() => { setSelectedProv(item); handleTabChange('reg'); }}
-                          className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1"
+                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1 w-fit"
                         >
-                          Lihat Kota <ChevronRight size={12} />
+                          Kota <ChevronRight size={10} />
                         </button>
                       )}
                       {activeTab === 'reg' && (
                         <button 
                           onClick={() => { setSelectedReg(item); handleTabChange('dist'); }}
-                          className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1"
+                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1 w-fit"
                         >
-                          Lihat Kecamatan <ChevronRight size={12} />
+                          Kec <ChevronRight size={10} />
                         </button>
                       )}
                       {activeTab === 'dist' && (
                         <button 
                           onClick={() => { setSelectedDist(item); handleTabChange('vill'); }}
-                          className="opacity-0 group-hover:opacity-100 px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1"
+                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-md hover:bg-blue-100 transition-all uppercase tracking-wider flex items-center gap-1 w-fit"
                         >
-                          Lihat Desa <ChevronRight size={12} />
+                          Desa <ChevronRight size={10} />
                         </button>
                       )}
                     </div>
                   </td>
                   {activeTab !== 'prov' && (
-                    <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tight">{getParentName()}</td>
+                    <td className="hidden sm:table-cell px-3 md:px-6 py-3 md:py-4 text-xs font-bold text-slate-500 uppercase tracking-tight">{getParentName()}</td>
                   )}
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                       <button onClick={() => handleEdit(item)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-lg transition-all border border-transparent hover:border-blue-100">
-                         <Edit3 size={16} />
+                  <td className="px-3 md:px-6 py-3 md:py-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                       <button onClick={() => handleEdit(item)} className="p-1.5 md:p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-light rounded-lg transition-all">
+                         <Edit3 size={15} />
                        </button>
-                       <button onClick={() => handleDelete(item.id)} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100">
-                         <Trash2 size={16} />
+                       <button onClick={() => handleDelete(item.id)} className="p-1.5 md:p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
+                         <Trash2 size={15} />
                        </button>
                     </div>
                   </td>
@@ -427,9 +427,9 @@ export default function MasterAddress() {
         </div>
         
         {/* Pagination Interface */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="p-3 md:p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
            <p className="text-xs font-bold text-slate-400">
-             Menampilkan Halaman <span className="text-slate-800">{page}</span> dari <span className="text-slate-800">{totalPages || 1}</span>
+             Hal. <span className="text-slate-800">{page}</span> / <span className="text-slate-800">{totalPages || 1}</span>
            </p>
            <div className="flex items-center gap-2">
               <button 
@@ -437,14 +437,14 @@ export default function MasterAddress() {
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
               <button 
                 disabled={page === totalPages || totalPages === 0}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
            </div>
         </div>

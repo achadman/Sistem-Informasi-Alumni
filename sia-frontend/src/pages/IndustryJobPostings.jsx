@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
 import { useLocation } from 'react-router-dom';
+import { formatDate } from '../lib/utils';
 
 const STATUS_COLORS = {
   Aktif: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -62,11 +63,13 @@ export default function IndustryJobPostings() {
 
         if (comp) {
           // Filter manually in JS to support both ID and Email mapping
-          const myJobs = allJobs.filter(j => 
-            j.company === comp.id || 
-            j.company === comp.email ||
-            j.company === user.email
-          );
+          const myJobs = allJobs
+            .filter(j => 
+              j.company === comp.id || 
+              j.company === comp.email ||
+              j.company === user.email
+            )
+            .sort((a, b) => new Date(b.created) - new Date(a.created));
           setJobs(myJobs);
 
           // Fetch applicant counts for my jobs
@@ -338,6 +341,10 @@ export default function IndustryJobPostings() {
                           <DollarSign size={12} /> {gaji}
                         </span>
                       )}
+                      <span className="flex items-center gap-2">
+                        <Calendar size={12} className="text-brand-primary opacity-50" /> 
+                        Dibuat: {formatDate(job.created)}
+                      </span>
                     </div>
                   </div>
 

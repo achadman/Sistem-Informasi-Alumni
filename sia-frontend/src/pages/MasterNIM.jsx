@@ -4,6 +4,7 @@ import {
   Users, Search, Plus, Key, X, Loader2, Edit3, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import CustomSelect from '../components/CustomSelect';
 
 export default function MasterNIM() {
   const [users, setUsers] = useState([]);
@@ -480,19 +481,12 @@ export default function MasterNIM() {
                 {!isBulkCreate && (
                   <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Pilih Alumni</label>
-                    <select 
-                      required={!isBulkCreate}
+                    <CustomSelect 
                       value={formData.username}
                       onChange={handleAlumniSelect}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-primary/20 focus:border-brand-primary transition-all text-sm font-medium cursor-pointer"
-                    >
-                      <option value="">-- Pilih NIM Alumni --</option>
-                      {availableAlumni.map(a => (
-                        <option key={a.id} value={a.nim}>
-                          {a.nim} - {a.nama}
-                        </option>
-                      ))}
-                    </select>
+                      options={availableAlumni.map(a => ({ value: a.nim, label: `${a.nim} - ${a.nama}` }))}
+                      placeholder="-- Pilih NIM Alumni --"
+                    />
                     {availableAlumni.length === 0 && (
                       <p className="text-xs text-amber-500 mt-1 font-medium">Semua data alumni sudah memiliki akun tersendiri.</p>
                     )}

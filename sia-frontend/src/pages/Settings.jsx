@@ -3,6 +3,7 @@ import { Sun, Moon, Plus, Trash2, Edit3, Save, X, Building2, BookOpen, Loader2 }
 import { useUIStore } from '../store/uiStore';
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
+import CustomSelect from '../components/CustomSelect';
 
 export default function Settings() {
   const { theme, toggleTheme } = useUIStore();
@@ -234,15 +235,12 @@ export default function Settings() {
             </h2>
 
             <form onSubmit={handleAddProdi} className="flex flex-col md:flex-row gap-3 mb-6 outline-none">
-               <select 
+               <CustomSelect 
                  value={newProdiFakultasId}
                  onChange={(e) => setNewProdiFakultasId(e.target.value)}
-                 className="bg-main border border-border-subtle rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-primary w-full md:w-1/3"
-                 required
-               >
-                 <option value="">-- Pilih Fakultas --</option>
-                 {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
-               </select>
+                 options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
+                 placeholder="Pilih Fakultas"
+               />
 
                <input 
                  type="text" 
@@ -269,13 +267,12 @@ export default function Settings() {
                   <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between border border-border-subtle bg-main p-3 rounded-xl gap-3">
                     {editProdiId === item.id ? (
                       <div className="flex-1 flex flex-col md:flex-row gap-2 w-full">
-                        <select 
+                        <CustomSelect 
                           value={editProdiFakultasId}
                           onChange={(e) => setEditProdiFakultasId(e.target.value)}
-                          className="bg-surface border border-border-subtle rounded-lg px-2 py-1.5 text-sm outline-none text-primary"
-                        >
-                          {fakultasList.map(f => <option key={f.id} value={f.id}>{f.nama}</option>)}
-                        </select>
+                          options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
+                          placeholder="Pilih Fakultas"
+                        />
                         <div className="flex-1 flex items-center gap-2">
                           <input 
                             type="text" 

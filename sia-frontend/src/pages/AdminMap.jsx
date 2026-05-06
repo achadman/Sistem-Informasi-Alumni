@@ -94,16 +94,23 @@ export default function AdminMap() {
     fetchData();
   }, []);
 
-  const filteredAlumni = useMemo(() => alumni.filter(a => 
-      a.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.kota?.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [alumni, searchTerm]);
+  const filteredAlumni = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return alumni.filter(a => 
+      (a.nama && a.nama.toLowerCase().includes(term)) ||
+      (a.kota && a.kota.toLowerCase().includes(term)) ||
+      (a.provinsi && a.provinsi.toLowerCase().includes(term))
+    );
+  }, [alumni, searchTerm]);
 
-  const filteredJobs = useMemo(() => jobs.filter(j => 
-      j.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      j.expand?.company?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      j.lokasi?.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [jobs, searchTerm]);
+  const filteredJobs = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    return jobs.filter(j => 
+      (j.judul && j.judul.toLowerCase().includes(term)) ||
+      (j.expand?.company?.nama && j.expand.company.nama.toLowerCase().includes(term)) ||
+      (j.lokasi && j.lokasi.toLowerCase().includes(term))
+    );
+  }, [jobs, searchTerm]);
 
   // Top Regions based on Active Tab
   const topRegions = useMemo(() => {
@@ -124,6 +131,24 @@ export default function AdminMap() {
     }
   }, [alumni, jobs, activeTab]);
 
+  const extraStats = useMemo(() => {
+    if (activeTab === 'Alumni') {
+      const counts = alumni.reduce((acc, curr) => {
+        const status = curr.status_kerja || 'Belum Bekerja';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    } else {
+      const counts = jobs.reduce((acc, curr) => {
+        const type = curr.tipe_kerja || 'Lainnya';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {});
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    }
+  }, [alumni, jobs, activeTab]);
+
   const handleFocusRegion = (name) => {
     setMapCenter(getCoordinates(name, ''));
     setZoom(10);
@@ -133,19 +158,19 @@ export default function AdminMap() {
     <div className="h-full flex flex-col space-y-4 animate-in fade-in duration-700 pb-10">
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Peta Distribusi</h1>
-          <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-display font-black text-primary tracking-tight">Peta Distribusi</h1>
+          <p className="text-sm text-secondary mt-1 flex items-center gap-2">
             <MapPin size={16} className="text-blue-500" />
             Titik sebaran alumni dan lowongan kerja.
           </p>
         </div>
 
         <div className="relative group w-full lg:w-72">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary opacity-60 group-focus-within:text-brand-primary transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Cari nama atau kota..." 
-            className="pl-11 pr-6 py-3 bg-white rounded-2xl border border-slate-100 shadow-sm w-full outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-200 transition-all text-sm"
+            className="pl-11 pr-6 py-3 bg-surface rounded-2xl border border-border-subtle shadow-sm w-full outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm text-primary font-bold placeholder:text-secondary placeholder:font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -153,17 +178,17 @@ export default function AdminMap() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex flex-col lg:flex-row gap-4 items-start w-full">
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch w-full relative">
         
-        {/* Side Panel */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 flex flex-col gap-4 animate-in fade-in slide-in-from-left-4">
+        {/* Side Panel (Native Scroll) */}
+        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col gap-4 animate-in fade-in slide-in-from-left-4 pb-4">
              {/* Filter Toggle */}
-             <div className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm flex items-center">
+             <div className="bg-surface p-1.5 rounded-2xl border border-border-subtle shadow-sm flex items-center shrink-0">
                {['Alumni', 'Lowongan'].map(tab => (
                  <button 
                    key={tab}
                    onClick={() => setActiveTab(tab)}
-                   className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${activeTab === tab ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                   className={`flex-1 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-widest ${activeTab === tab ? 'bg-brand-primary text-white shadow-md' : 'text-secondary hover:bg-main'}`}
                  >
                    {tab}
                  </button>
@@ -171,49 +196,78 @@ export default function AdminMap() {
              </div>
              
              {/* Stats Cards */}
-             <div className="grid grid-cols-2 gap-3">
-               <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
-                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} className="text-blue-500"/> Alumni</p>
-                 <p className="text-2xl font-black text-slate-900 mt-1">{alumni.length}</p>
+             <div className="grid grid-cols-2 gap-3 shrink-0">
+               <div className="bg-surface p-4 rounded-2xl border border-border-subtle shadow-sm flex flex-col justify-center">
+                 <p className="text-[10px] font-black text-secondary opacity-80 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} className="text-blue-500"/> Alumni</p>
+                 <p className="text-2xl font-black text-primary mt-1">{alumni.length}</p>
                </div>
-               <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm flex flex-col justify-center">
-                 <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1.5"><Briefcase size={12}/> Lowongan</p>
-                 <p className="text-2xl font-black text-emerald-700 mt-1">{jobs.length}</p>
+               <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 shadow-sm flex flex-col justify-center">
+                 <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5"><Briefcase size={12}/> Lowongan</p>
+                 <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">{jobs.length}</p>
                </div>
              </div>
 
              {/* Top Regions */}
-             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <MapPin size={14} className="text-blue-500" /> 
+             <div className="bg-surface p-5 rounded-2xl border border-border-subtle shadow-sm shrink-0">
+                <h3 className="text-[11px] font-black text-secondary opacity-80 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <MapPin size={14} className="text-brand-primary" /> 
                   {activeTab === 'Alumni' ? '5 Provinsi Teratas' : '5 Daerah Teratas'}
                 </h3>
                 <div className="space-y-1">
                   {topRegions.length > 0 ? topRegions.map(([name, count]) => (
                     <div 
                       key={name}
-                      className="flex items-center justify-between group cursor-pointer hover:bg-slate-50 p-2.5 -mx-2.5 rounded-xl transition-colors"
+                      className="flex items-center justify-between group cursor-pointer hover:bg-main p-2.5 -mx-2.5 rounded-xl transition-colors"
                       onClick={() => handleFocusRegion(name)}
                     >
-                       <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">{name}</span>
-                       <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">{count}</span>
+                       <span className="text-sm font-bold text-primary group-hover:text-brand-primary transition-colors line-clamp-1 pr-3">{name}</span>
+                       <span className="text-xs font-black text-secondary bg-main border border-border-subtle px-2 py-1 rounded-md shrink-0">{count}</span>
                     </div>
                   )) : (
-                    <p className="text-xs text-slate-400 font-medium py-2">Data belum tersedia.</p>
+                    <p className="text-xs text-secondary font-medium py-2">Data belum tersedia.</p>
+                  )}
+                </div>
+             </div>
+
+             {/* Extra Information Panel (Progress Bars) */}
+             <div className="bg-surface p-5 rounded-2xl border border-border-subtle shadow-sm flex-1 shrink-0">
+                <h3 className="text-[11px] font-black text-secondary opacity-80 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Info size={14} className={activeTab === 'Alumni' ? "text-brand-primary" : "text-emerald-500"} /> 
+                  {activeTab === 'Alumni' ? 'Status Pekerjaan' : 'Tipe Pekerjaan'}
+                </h3>
+                <div className="space-y-4">
+                  {extraStats.length > 0 ? extraStats.map(([name, count]) => {
+                    const total = activeTab === 'Alumni' ? alumni.length : jobs.length;
+                    const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                    return (
+                    <div key={name} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-primary line-clamp-1 pr-2">{name}</span>
+                        <span className="font-black text-secondary shrink-0">{count} <span className="opacity-60">({percentage}%)</span></span>
+                      </div>
+                      <div className="w-full bg-main border border-border-subtle rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-1000 ${activeTab === 'Alumni' ? 'bg-brand-primary' : 'bg-emerald-500'}`} 
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}) : (
+                    <p className="text-xs text-secondary font-medium py-2">Data belum tersedia.</p>
                   )}
                 </div>
              </div>
            </div>
 
         {/* Map Container */}
-        <div className="w-full flex flex-col h-[500px] lg:h-[calc(100vh-220px)] min-h-[500px] bg-white p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2.5rem] shadow-soft border border-slate-100 relative z-0 flex-1">
+        <div className="w-full min-h-[500px] lg:h-auto flex flex-col bg-surface p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2.5rem] shadow-soft border border-border-subtle relative z-0 flex-1 mb-4">
           {loading ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50 gap-4 rounded-[1.2rem] md:rounded-[2rem]">
-               <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
-               <p className="text-xs md:text-sm text-slate-400 font-medium animate-pulse">Memetakan lokasi data...</p>
+            <div className="w-full h-full flex flex-col items-center justify-center bg-main gap-4 rounded-[1.2rem] md:rounded-[2rem]">
+               <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin"></div>
+               <p className="text-xs md:text-sm text-secondary font-black uppercase tracking-widest animate-pulse">Memetakan lokasi data...</p>
             </div>
           ) : (
-            <div className="flex-1 w-full relative bg-slate-50 rounded-[1.2rem] md:rounded-[2rem] overflow-hidden">
+            <div className="flex-1 w-full h-full relative bg-main rounded-[1.2rem] md:rounded-[2rem] overflow-hidden">
               <MapContainer 
                 center={mapCenter} 
                 zoom={zoom} 
@@ -249,12 +303,12 @@ export default function AdminMap() {
                         <Popup className="custom-popup">
                         <div className="p-3 min-w-[200px]">
                           <div className="flex items-center gap-3 mb-3">
-                             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
+                             <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-lg">
                                {person.nama.charAt(0)}
                              </div>
                              <div>
                                 <p className="font-bold text-slate-900 leading-tight">{person.nama}</p>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{person.nim}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{person.nim}</p>
                              </div>
                           </div>
                           
@@ -275,7 +329,7 @@ export default function AdminMap() {
 
                           <button 
                             onClick={() => window.open(isAdmin ? `/admin/alumni/${person.id}` : isIndustri ? `/industri/alumni/${person.id}` : `/alumni/${person.id}`, '_self')}
-                            className="w-full mt-4 py-2 bg-blue-600 text-white text-[10px] font-bold uppercase rounded-lg shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                            className="w-full mt-4 py-2 bg-brand-primary text-white text-[10px] font-bold uppercase rounded-lg shadow-lg hover:opacity-90 transition-all flex items-center justify-center gap-2"
                           >
                              Detail Alumni <Navigation size={12} />
                           </button>
@@ -309,12 +363,12 @@ export default function AdminMap() {
                         <Popup className="custom-popup">
                         <div className="p-3 min-w-[200px]">
                           <div className="flex items-center gap-3 mb-3">
-                             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-lg">
                                <Briefcase size={20} />
                              </div>
                              <div>
                                 <p className="font-bold text-slate-900 leading-tight truncate max-w-[140px]">{job.judul}</p>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate max-w-[140px]">{job.expand?.company?.nama || 'Perusahaan'}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider truncate max-w-[140px]">{job.expand?.company?.nama || 'Perusahaan'}</p>
                              </div>
                           </div>
                           
@@ -331,7 +385,7 @@ export default function AdminMap() {
 
                           <button 
                             onClick={() => window.open(isAdmin || isIndustri ? `/industri/lowongan?jobId=${job.id}` : `/lowongan?jobId=${job.id}`, '_self')}
-                            className="w-full mt-4 py-2 bg-emerald-600 text-white text-[10px] font-bold uppercase rounded-lg shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                            className="w-full mt-4 py-2 bg-emerald-600 text-white text-[10px] font-bold uppercase rounded-lg shadow-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
                           >
                              Lihat Lowongan <Navigation size={12} />
                           </button>

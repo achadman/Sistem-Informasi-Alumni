@@ -10,6 +10,7 @@ import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
 import AutocompleteSearch from '../components/AutocompleteSearch';
 import RegionSelect from '../components/RegionSelect';
+import CustomSelect from '../components/CustomSelect';
 
 const tipeOptions = ['Full-time', 'Part-time', 'Kontrak', 'Remote', 'Magang'];
 const statusOptions = ['Draft', 'Aktif', 'Tutup'];
@@ -210,7 +211,7 @@ export default function IndustryCreateJob() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-20">
+    <div className="max-w-6xl mx-auto space-y-8 pb-20">
       {/* Toast */}
       {toast && (
         <motion.div
@@ -277,24 +278,21 @@ export default function IndustryCreateJob() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">Tipe Hubungan Kerja *</label>
-                <select
-                  required
+                <CustomSelect
                   value={form.tipe_kerja}
                   onChange={(e) => setForm(f => ({ ...f, tipe_kerja: e.target.value }))}
-                  className="w-full px-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all font-bold text-sm appearance-none"
-                >
-                  {tipeOptions.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                  options={tipeOptions.map(t => ({ value: t, label: t }))}
+                  placeholder="Pilih Tipe"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">Status Publikasi</label>
-                <select
+                <CustomSelect
                   value={form.status}
                   onChange={(e) => setForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all font-bold text-sm appearance-none"
-                >
-                  {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                  options={statusOptions.map(s => ({ value: s, label: s }))}
+                  placeholder="Pilih Status"
+                />
               </div>
             </div>
 
