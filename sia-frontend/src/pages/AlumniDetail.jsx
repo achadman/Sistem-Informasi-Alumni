@@ -132,12 +132,12 @@ export default function AlumniDetail() {
             </div>
 
             {/* Profile Info Area */}
-            <div className="px-12 pb-12 relative">
+            <div className="px-6 md:px-12 pb-12 relative">
               {/* Avatar and Primary Info (Vertical Stack) */}
-              <div className="flex flex-col items-start gap-6 -mt-24 mb-10 px-2">
+              <div className="flex flex-col items-start gap-4 md:gap-6 -mt-16 md:-mt-24 mb-8 md:mb-10 px-1 md:px-2">
                 {/* Avatar Container */}
                 <div className="relative">
-                  <div className="w-48 h-48 rounded-full border-[8px] border-white bg-white shadow-2xl overflow-hidden flex items-center justify-center">
+                  <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-[6px] md:border-[8px] border-white bg-white shadow-2xl overflow-hidden flex items-center justify-center">
                     {avatarUrl ? (
                       <img src={avatarUrl} alt={person.nama} className="w-full h-full object-cover" />
                     ) : (
@@ -150,21 +150,21 @@ export default function AlumniDetail() {
 
                 {/* Primary Info (Under Avatar) */}
                 <div className="w-full">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">{person.nama || 'Tanpa Nama'}</h2>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight leading-tight">{person.nama || 'Tanpa Nama'}</h2>
                     {person.verified && (
-                      <div className="p-1.5 bg-blue-600 text-white rounded-full shrink-0 shadow-lg shadow-blue-200" title="Identitas Terverifikasi">
+                      <div className="p-1.5 bg-blue-600 text-white rounded-full self-start shadow-lg shadow-blue-200" title="Identitas Terverifikasi">
                         <CheckCircle2 size={16} fill="currentColor" />
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-[11px] font-black uppercase tracking-widest">
-                    <span className="text-blue-600 px-4 py-2 bg-blue-50 rounded-xl border border-blue-100/50">{person.status_kerja || 'Belum Bekerja'}</span>
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest">
+                    <span className="text-blue-600 px-3 md:px-4 py-2 bg-blue-50 rounded-xl border border-blue-100/50">{person.status_kerja || 'Belum Bekerja'}</span>
                     {person.np && <span className="text-slate-700">{person.np}</span>}
-                    <span className="text-slate-300 font-light text-lg">|</span>
+                    <span className="text-slate-300 font-light text-lg hidden sm:block">|</span>
                     <span className="text-slate-500">Lulusan {person.tahun_lulus || '-'}</span>
-                    <span className="text-slate-500 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200/50">NIM: {person.nim}</span>
+                    <span className="text-slate-500 bg-slate-100 px-3 md:px-4 py-2 rounded-xl border border-slate-200/50">NIM: {person.nim}</span>
                   </div>
                 </div>
               </div>
@@ -212,6 +212,7 @@ export default function AlumniDetail() {
                  <DetailItem label="Program Studi" value={person.prodi} />
                  <DetailItem label="Angkatan / Lulus" value={person.tahun_lulus} />
                  <DetailItem label="Jenis Kelamin" value={person.gender === 'L' ? 'Laki-Laki' : 'Perempuan'} />
+                 <DetailItem label="Tempat, Tanggal Lahir" value={(person.tempat_lahir || person.tanggal_lahir) ? `${person.tempat_lahir || '-'}, ${person.tanggal_lahir ? new Date(person.tanggal_lahir).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}` : null} />
                  <DetailItem label="Agama" value={person.agama} />
                  <DetailItem label="Golongan Darah" value={person.golongan_darah} />
 

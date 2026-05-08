@@ -42,45 +42,67 @@ export default function AdminMap() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [mapCenter, setMapCenter] = useState([-2.5489, 118.0149]);
   const [zoom, setZoom] = useState(5);
+  const [activeTab, setActiveTab] = useState('Alumni');
+  const [sideStats, setSideStats] = useState({ regions: [], workStatus: [] });
+  const [counts, setCounts] = useState({ alumni: 0, jobs: 0 });
+
+  // SEARCH STATE
+  const [confirmedSearchTerm, setConfirmedSearchTerm] = useState('');
+
+  const handleSearchTrigger = () => {
+    setConfirmedSearchTerm(searchTerm);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearchTrigger();
+    }
+  };
   
   // UI States
-  const [activeTab, setActiveTab] = useState('Alumni'); // 'Alumni', 'Lowongan'
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const [alumniCountRes, jobsCountRes, regionRes, workRes] = await Promise.all([
+          pb.collection('alumni').getList(1, 1),
+          pb.collection('job_postings').getList(1, 1),
+          pb.collection('view_statistik_wilayah').getFullList(),
+          pb.collection('view_statistik_kerja').getFullList()
+        ]);
+
+        setCounts({
+          alumni: alumniCountRes.totalItems,
+          jobs: jobsCountRes.totalItems
+        });
+
+        setSideStats({
+          regions: regionRes.slice(0, 5).map(r => [r.name, r.value]),
+          workStatus: workRes.map(w => [w.name, w.value])
+        });
+
         const [alumniRecords, jobRecords] = await Promise.all([
-          pb.collection('alumni').getFullList({ 
-            autoCancel: false,
+          pb.collection('alumni').getList(1, 1000, { 
+            sort: '-created',
             fields: 'id,nama,nim,provinsi,kota,status_kerja,tahun_lulus'
           }),
           pb.collection('job_postings').getFullList({
-            autoCancel: false,
             expand: 'company',
             filter: 'status="Aktif"'
           })
         ]);
         
-        const processedAlumni = alumniRecords.map(a => {
+        const processedAlumni = alumniRecords.items.map(a => {
           const rawCoords = getCoordinates(a.provinsi, a.kota);
-          const jitterLat = (Math.random() - 0.5) * 0.025;
-          const jitterLng = (Math.random() - 0.5) * 0.025;
-          return {
-            ...a,
-            coords: { lat: rawCoords.lat + jitterLat, lng: rawCoords.lng + jitterLng }
-          };
+          return { ...a, coords: { lat: rawCoords.lat + (Math.random() - 0.5) * 0.02, lng: rawCoords.lng + (Math.random() - 0.5) * 0.02 } };
         });
         
         const processedJobs = jobRecords.map(j => {
           const rawCoords = getCoordinates(j.lokasi, '');
-          const jitterLat = (Math.random() - 0.5) * 0.025;
-          const jitterLng = (Math.random() - 0.5) * 0.025;
-          return {
-            ...j,
-            coords: { lat: rawCoords.lat + jitterLat, lng: rawCoords.lng + jitterLng }
-          };
+          return { ...j, coords: { lat: rawCoords.lat + (Math.random() - 0.5) * 0.02, lng: rawCoords.lng + (Math.random() - 0.5) * 0.02 } };
         });
 
         setAlumni(processedAlumni);
@@ -95,59 +117,45 @@ export default function AdminMap() {
   }, []);
 
   const filteredAlumni = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return alumni.filter(a => 
-      (a.nama && a.nama.toLowerCase().includes(term)) ||
-      (a.kota && a.kota.toLowerCase().includes(term)) ||
-      (a.provinsi && a.provinsi.toLowerCase().includes(term))
-    );
-  }, [alumni, searchTerm]);
+    const term = confirmedSearchTerm.trim().toLowerCase();
+    if (!term) return alumni;
+
+    const results = [];
+    for (let i = 0; i < alumni.length; i++) {
+      const a = alumni[i];
+      if (
+        (a.nama && a.nama.toLowerCase().includes(term)) ||
+        (a.nim && a.nim.toLowerCase().includes(term)) ||
+        (a.kota && a.kota.toLowerCase().includes(term)) ||
+        (a.provinsi && a.provinsi.toLowerCase().includes(term))
+      ) {
+        results.push(a);
+      }
+      if (results.length >= 500) break; 
+    }
+    return results;
+  }, [alumni, confirmedSearchTerm]);
 
   const filteredJobs = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = confirmedSearchTerm.toLowerCase();
+    if (!term) return jobs;
     return jobs.filter(j => 
       (j.judul && j.judul.toLowerCase().includes(term)) ||
       (j.expand?.company?.nama && j.expand.company.nama.toLowerCase().includes(term)) ||
       (j.lokasi && j.lokasi.toLowerCase().includes(term))
     );
-  }, [jobs, searchTerm]);
+  }, [jobs, confirmedSearchTerm]);
 
-  // Top Regions based on Active Tab
-  const topRegions = useMemo(() => {
-    if (activeTab === 'Alumni') {
-      const counts = alumni.reduce((acc, curr) => {
-        const prov = curr.provinsi || 'Lainnya';
-        acc[prov] = (acc[prov] || 0) + 1;
-        return acc;
-      }, {});
-      return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    } else {
-      const counts = jobs.reduce((acc, curr) => {
-        const loc = curr.lokasi ? curr.lokasi.split(',')[0].trim() : 'Lainnya';
-        acc[loc] = (acc[loc] || 0) + 1;
-        return acc;
-      }, {});
-      return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    }
-  }, [alumni, jobs, activeTab]);
+  const isCapped = useMemo(() => {
+    if (!confirmedSearchTerm) return false;
+    if (activeTab === 'Alumni') return filteredAlumni.length >= 500;
+    return false;
+  }, [filteredAlumni, activeTab, confirmedSearchTerm]);
 
-  const extraStats = useMemo(() => {
-    if (activeTab === 'Alumni') {
-      const counts = alumni.reduce((acc, curr) => {
-        const status = curr.status_kerja || 'Belum Bekerja';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {});
-      return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    } else {
-      const counts = jobs.reduce((acc, curr) => {
-        const type = curr.tipe_kerja || 'Lainnya';
-        acc[type] = (acc[type] || 0) + 1;
-        return acc;
-      }, {});
-      return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    }
-  }, [alumni, jobs, activeTab]);
+  // TOP REGIONS - Diambil dari state sideStats (View-powered)
+  const topRegionsDisplay = useMemo(() => sideStats.regions, [sideStats.regions]);
+
+  const workStatusStats = useMemo(() => sideStats.workStatus, [sideStats.workStatus]);
 
   const handleFocusRegion = (name) => {
     setMapCenter(getCoordinates(name, ''));
@@ -156,24 +164,31 @@ export default function AdminMap() {
 
   return (
     <div className="h-full flex flex-col space-y-4 animate-in fade-in duration-700 pb-10">
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-display font-black text-primary tracking-tight">Peta Distribusi</h1>
-          <p className="text-sm text-secondary mt-1 flex items-center gap-2">
-            <MapPin size={16} className="text-blue-500" />
-            Titik sebaran alumni dan lowongan kerja.
-          </p>
-        </div>
+      <header className="flex justify-end gap-4 shrink-0 mb-2">
 
         <div className="relative group w-full lg:w-72">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary opacity-60 group-focus-within:text-brand-primary transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Cari nama atau kota..." 
-            className="pl-11 pr-6 py-3 bg-surface rounded-2xl border border-border-subtle shadow-sm w-full outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm text-primary font-bold placeholder:text-secondary placeholder:font-medium"
+            className="pl-11 pr-24 py-3 bg-surface rounded-2xl border border-border-subtle shadow-sm w-full outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm text-primary font-bold placeholder:text-secondary placeholder:font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleKeyDown}
           />
+          <button 
+            onClick={handleSearchTrigger}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-sm hover:brightness-110 active:scale-95 transition-all"
+          >
+            Cari
+          </button>
+          {isCapped && (
+            <div className="absolute right-4 top-full mt-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm animate-in fade-in zoom-in duration-300 z-[100]">
+              <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1.5">
+                <Info size={12} /> Menampilkan 500 hasil teratas untuk performa
+              </p>
+            </div>
+          )}
         </div>
       </header>
 
@@ -195,15 +210,14 @@ export default function AdminMap() {
                ))}
              </div>
              
-             {/* Stats Cards */}
              <div className="grid grid-cols-2 gap-3 shrink-0">
                <div className="bg-surface p-4 rounded-2xl border border-border-subtle shadow-sm flex flex-col justify-center">
                  <p className="text-[10px] font-black text-secondary opacity-80 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} className="text-blue-500"/> Alumni</p>
-                 <p className="text-2xl font-black text-primary mt-1">{alumni.length}</p>
+                 <p className="text-2xl font-black text-primary mt-1">{counts.alumni}</p>
                </div>
                <div className="bg-emerald-500/10 p-4 rounded-2xl border border-emerald-500/20 shadow-sm flex flex-col justify-center">
                  <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-1.5"><Briefcase size={12}/> Lowongan</p>
-                 <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">{jobs.length}</p>
+                 <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">{counts.jobs}</p>
                </div>
              </div>
 
@@ -214,7 +228,7 @@ export default function AdminMap() {
                   {activeTab === 'Alumni' ? '5 Provinsi Teratas' : '5 Daerah Teratas'}
                 </h3>
                 <div className="space-y-1">
-                  {topRegions.length > 0 ? topRegions.map(([name, count]) => (
+                  {topRegionsDisplay.length > 0 ? topRegionsDisplay.map(([name, count]) => (
                     <div 
                       key={name}
                       className="flex items-center justify-between group cursor-pointer hover:bg-main p-2.5 -mx-2.5 rounded-xl transition-colors"
@@ -236,8 +250,8 @@ export default function AdminMap() {
                   {activeTab === 'Alumni' ? 'Status Pekerjaan' : 'Tipe Pekerjaan'}
                 </h3>
                 <div className="space-y-4">
-                  {extraStats.length > 0 ? extraStats.map(([name, count]) => {
-                    const total = activeTab === 'Alumni' ? alumni.length : jobs.length;
+                  {workStatusStats.length > 0 ? workStatusStats.map(([name, count]) => {
+                    const total = activeTab === 'Alumni' ? counts.alumni : counts.jobs;
                     const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
                     return (
                     <div key={name} className="space-y-1.5">
@@ -272,12 +286,15 @@ export default function AdminMap() {
                 center={mapCenter} 
                 zoom={zoom} 
                 scrollWheelZoom={true} 
+                preferCanvas={true} // OPTIMASI: Menggunakan Canvas untuk performa marker ribuan data
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
               >
                 <ChangeView center={mapCenter} zoom={zoom} />
                 <TileLayer
                   attribution='&copy; CARTO'
                   url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  updateWhenIdle={true} // Hanya update saat peta diam (mengurangi lag)
+                  updateWhenZooming={false}
                 />
                 
                 {activeTab === 'Alumni' && (

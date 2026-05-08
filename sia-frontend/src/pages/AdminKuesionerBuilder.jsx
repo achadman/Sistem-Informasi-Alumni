@@ -250,15 +250,9 @@ export default function AdminKuesionerBuilder() {
     <div className="min-h-screen bg-[#F0EBF8]/30 pb-32 animate-in fade-in duration-500">
       {/* Top Navigation */}
       <div className="bg-white px-6 py-4 border-b border-slate-200 sticky top-0 z-50 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <button onClick={() => navigate('/admin/kuesioner')} className="p-2 -ml-2 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors">
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-lg font-bold text-slate-800 leading-tight">Form Kuesioner</h1>
-            <p className="text-xs font-medium text-slate-500">{questionnaire.title || 'Tanpa Judul'}</p>
-          </div>
-        </div>
+        <button onClick={() => navigate('/admin/kuesioner')} className="flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 font-bold text-xs transition-colors uppercase tracking-wider">
+          <ArrowLeft size={14} /> Kembali
+        </button>
         <button 
           onClick={handleSaveQuestionnaire}
           disabled={saving}

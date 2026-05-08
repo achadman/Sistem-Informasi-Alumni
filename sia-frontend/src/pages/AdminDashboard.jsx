@@ -99,102 +99,69 @@ export default function AdminDashboard() {
   const fetchDashboardData = async (signal) => {
     setLoading(true);
     try {
-      // Ambil hanya field yang diperlukan untuk mengurangi payload (BUG-01 fix)
-      const [alumniRecords, tracerRecords, fakultasList, prodiList] = await Promise.all([
-        pb.collection('alumni').getFullList({
-          fields: 'id,status_kerja,tahun_lulus,gender,provinsi,prodi,keterangan,semester_dropout',
-          requestKey: 'dashboard-alumni',
-        }),
-        pb.collection('tracer_studies').getFullList({
-          fields: 'id,alumni_id,status',
-          requestKey: 'dashboard-tracer',
-        }),
-        pb.collection('fakultas').getFullList({ sort: 'nama', requestKey: 'dashboard-fakultas' }),
-        pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama', requestKey: 'dashboard-prodi' })
+      // SESUAIKAN DENGAN NAMA DI POCKETBASE ANDA
+      const [workRes, regionRes, prodiRes, genderRes, doRes, tracerRes, prodiList, totalRes] = await Promise.all([
+        pb.collection('view_statistik_kerja').getFullList(), 
+        pb.collection('view_statistik_wilayah').getFullList(),
+        pb.collection('view_statistik_prodi').getFullList(),
+        pb.collection('view_statistik_gender').getFullList(),
+        pb.collection('view_statistik_dropout').getFullList(),
+        pb.collection('tracer_studies').getList(1, 1),
+        pb.collection('program_studi').getFullList({ expand: 'fakultas_id', sort: 'nama' }),
+        pb.collection('alumni').getList(1, 1)
       ]);
 
-      const workCounts = alumniRecords.reduce((acc, curr) => {
-        if (!curr.status_kerja) return acc;
-        const status = curr.status_kerja.charAt(0).toUpperCase() + curr.status_kerja.slice(1);
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-      }, {});
-      
-      const workStatusData = Object.entries(workCounts).map(([name, value]) => ({ 
-        name, 
-        value,
-        itemStyle: { color: name === 'Bekerja' ? '#3b82f6' : name.includes('Wira') ? '#10b981' : name.includes('Studi') ? '#8b5cf6' : '#f59e0b' }
+      // 1. Work Status
+      const workStatusData = workRes.map(item => ({
+        name: item.name || 'Lainnya',
+        value: item.value || 0,
+        itemStyle: { 
+          color: item.name === 'Bekerja' ? '#3b82f6' : 
+                 item.name?.includes('Wira') ? '#10b981' : 
+                 item.name?.includes('Studi') ? '#8b5cf6' : '#f59e0b' 
+        }
       }));
 
-      // AGGREGATE GENDER (Stacked Bar)
-      let genderBatchData = { batches: [], male: [], female: [] };
-      try {
-         const batches = Array.from(new Set(alumniRecords.map(a => a.tahun_lulus))).sort().slice(-2);
-         genderBatchData = {
-           batches,
-           male: batches.map(year => alumniRecords.filter(a => a.tahun_lulus === year && a.gender === 'L').length),
-           female: batches.map(year => alumniRecords.filter(a => a.tahun_lulus === year && a.gender === 'P').length),
-         };
-      } catch (e) { console.error("Failing to aggregate gender", e); }
-
-      // AGGREGATE REGIONS (Top 5 + Others)
-      const regionCounts = alumniRecords.reduce((acc, curr) => {
-        const prov = curr.provinsi || 'Tidak Diketahui';
-        acc[prov] = (acc[prov] || 0) + 1;
-        return acc;
-      }, {});
-      const sortedRegions = Object.entries(regionCounts)
-        .sort((a, b) => b[1] - a[1]);
-      const topRegions = sortedRegions.slice(0, 5).map(([name, value]) => ({ name, value }));
-      const otherCount = sortedRegions.slice(5).reduce((sum, [_, val]) => sum + val, 0);
+      // 2. Region Stats
+      const topRegions = regionRes.slice(0, 5).map(r => ({ name: r.name, value: r.value || 0 }));
+      const otherCount = regionRes.slice(5).reduce((sum, r) => sum + (r.value || 0), 0);
       if (otherCount > 0) topRegions.push({ name: 'Lainnya', value: otherCount });
 
-      // AGGREGATE DROPOUTS (By Semester)
-      const dropoutCounts = Array(8).fill(0);
-      alumniRecords.forEach(a => {
-        const keterangan = a.keterangan ? String(a.keterangan).trim().toLowerCase() : '';
-        const isDO = keterangan === 'drop out (do)';
-        const sem = parseInt(a.semester_dropout) || 0;
-        
-        if (isDO && sem >= 1 && sem <= 8) {
-          dropoutCounts[sem - 1]++;
-        }
-      });
-
-      // AGGREGATE CHURN RATE OVERALL
-      const totalDO = alumniRecords.filter(a => a.keterangan && a.keterangan.trim().toLowerCase() === 'drop out (do)').length;
-      const totalAlumniRecords = alumniRecords.length || 1;
-      const churnRateCalculated = ((totalDO / totalAlumniRecords) * 100).toFixed(1) + '%';
-
-      // AGGREGATE PRODI & FAKULTAS
-      const prodiCounts = {};
+      // 3. Prodi & Fakultas
       const fakultasCounts = {};
-
-      alumniRecords.forEach(a => {
-        if (!a.prodi) return;
-        
-        prodiCounts[a.prodi] = (prodiCounts[a.prodi] || 0) + 1;
-
-        const matchedProdi = prodiList.find(p => p.nama.toLowerCase() === a.prodi.toLowerCase());
-        if (matchedProdi && matchedProdi.expand && matchedProdi.expand.fakultas_id) {
-          const fName = matchedProdi.expand.fakultas_id.nama;
-          fakultasCounts[fName] = (fakultasCounts[fName] || 0) + 1;
-        } else {
-          fakultasCounts['Lainnya'] = (fakultasCounts['Lainnya'] || 0) + 1;
+      const prodiStatsData = prodiRes.map(p => {
+        const matched = prodiList.find(pl => pl.nama.toLowerCase() === p.name?.toLowerCase());
+        if (matched?.expand?.fakultas_id) {
+          const fName = matched.expand.fakultas_id.nama;
+          fakultasCounts[fName] = (fakultasCounts[fName] || 0) + (p.value || 0);
         }
-      });
-
-      const prodiStatsData = Object.entries(prodiCounts)
-        .sort((a, b) => a[1] - b[1]) // Ascending for horizontal bar chart
-        .map(([name, value]) => ({ name, value }));
+        return { name: p.name, value: p.value || 0 };
+      }).sort((a, b) => a.value - b.value);
 
       const fakultasStatsData = Object.entries(fakultasCounts)
-        .sort((a, b) => b[1] - a[1]) // Descending for pie chart
-        .map(([name, value]) => ({ name, value }));
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      // 4. Gender Stats (Data dari View Baru)
+      const sortedGenderRes = [...genderRes].sort((a, b) => a.tahun_lulus - b.tahun_lulus).slice(-2);
+      const genderBatchData = {
+        batches: sortedGenderRes.map(g => g.tahun_lulus),
+        male: sortedGenderRes.map(g => g.male || 0),
+        female: sortedGenderRes.map(g => g.female || 0)
+      };
+
+      // 5. DO Stats (Data dari View Baru)
+      const dropoutCounts = Array(8).fill(0);
+      doRes.forEach(d => {
+        const sem = parseInt(d.semester_dropout) || 0;
+        if (sem >= 1 && sem <= 8) dropoutCounts[sem - 1] = d.total || 0;
+      });
+      const totalDO = doRes.reduce((sum, d) => sum + (d.total || 0), 0);
+      const churnRateCalculated = ((totalDO / (totalRes.totalItems || 1)) * 100).toFixed(1) + '%';
 
       setData({
-        alumni: alumniRecords,
-        tracer: tracerRecords,
+        alumni: { length: totalRes.totalItems },
+        tracer: { length: tracerRes.totalItems },
         stats: {
           workStatus: workStatusData,
           genderBatch: genderBatchData,
@@ -279,12 +246,13 @@ export default function AdminDashboard() {
 
   const renderPieStats = () => {
     if (activePieChart === 'karir') {
+      const getVal = (name) => data.stats.workStatus.find(s => s.name?.toLowerCase().includes(name.toLowerCase()))?.value || 0;
       return (
         <div className="flex flex-col gap-3">
-           <StatRow label="Alumni Bekerja" value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'bekerja').length} color="blue" icon={<Briefcase size={16}/>} />
-           <StatRow label="Wiraswasta" value={data.alumni.filter(a => a.status_kerja?.toLowerCase() === 'wiraswasta').length} color="emerald" icon={<TrendingUp size={16}/>} />
-           <StatRow label="Studi Lanjut" value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('studi')).length} color="purple" icon={<GraduationCap size={16}/>} />
-           <StatRow label="Belum Bekerja" value={data.alumni.filter(a => a.status_kerja?.toLowerCase().includes('belum')).length} color="amber" icon={<UserX size={16}/>} />
+           <StatRow label="Alumni Bekerja" value={getVal('Bekerja')} color="blue" icon={<Briefcase size={16}/>} />
+           <StatRow label="Wiraswasta" value={getVal('Wira')} color="emerald" icon={<TrendingUp size={16}/>} />
+           <StatRow label="Studi Lanjut" value={getVal('Studi')} color="purple" icon={<GraduationCap size={16}/>} />
+           <StatRow label="Belum Bekerja" value={getVal('Belum')} color="amber" icon={<UserX size={16}/>} />
         </div>
       );
     } else {
@@ -325,13 +293,11 @@ export default function AdminDashboard() {
          </div>
        )
     } else if (activeBarChart === 'gender') {
-       const totalLaki = data.alumni.filter(a => a.gender === 'L').length;
-       const totalPr = data.alumni.filter(a => a.gender === 'P').length;
        return (
          <div className="flex flex-col gap-3">
-           <StatRow label="Total Laki-laki" value={totalLaki} color="blue" icon={<Users size={16}/>} />
-           <StatRow label="Total Perempuan" value={totalPr} color="purple" icon={<Users size={16}/>} />
-           <StatRow label="Total Lulusan" value={data.alumni.length} color="emerald" icon={<GraduationCap size={16}/>} />
+           <StatRow label="Total Laki-laki" value="-" color="blue" icon={<Users size={16}/>} />
+           <StatRow label="Total Perempuan" value="-" color="purple" icon={<Users size={16}/>} />
+           <StatRow label="Total Alumni" value={data.alumni.length} color="emerald" icon={<GraduationCap size={16}/>} />
          </div>
        )
     }
@@ -478,16 +444,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 md:space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-primary tracking-tight">Dasbor Utama</h1>
-          <p className="text-sm text-secondary mt-1 font-medium">Analisis mendalam sebaran karir alumni & statistik institusi.</p>
-        </div>
-        <div className="flex gap-3">
-           <button onClick={exportToCSV} className="px-6 py-2.5 bg-blue-600 rounded-2xl text-xs font-black text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500 transition-all flex items-center gap-2 uppercase tracking-wider active:scale-95">
-             Ekspor CSV
-           </button>
-        </div>
+      <header className="flex justify-end mb-2">
+        <button onClick={exportToCSV} className="px-6 py-2.5 bg-blue-600 rounded-2xl text-xs font-black text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500 transition-all flex items-center gap-2 uppercase tracking-wider active:scale-95">
+          Ekspor CSV
+        </button>
       </header>
 
       {/* SECTION 1: PIE CHART (Komposisi Data) */}

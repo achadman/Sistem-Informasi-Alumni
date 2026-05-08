@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Menu, GraduationCap, Sun, Moon } from 'lucide-react';
 import { useUIStore } from '../store/uiStore';
@@ -7,7 +7,23 @@ import { pb } from '../lib/pb';
 
 export default function Layout() {
   const { toggleMobileMenu, toggleSidebar, theme, toggleTheme } = useUIStore();
-  const [institution, setInstitution] = useState({ nama: 'SIA Portal', logoUrl: null });
+  const location = useLocation();
+
+  const getPageTitle = (pathname) => {
+    if (pathname === '/admin' || pathname === '/' || pathname === '/industri') return 'Dashboard';
+    if (pathname.includes('/kuesioner')) return 'Kuesioner';
+    if (pathname.includes('/alumni')) return 'Daftar Alumni';
+    if (pathname.includes('/perusahaan')) return 'Verifikasi Perusahaan';
+    if (pathname.includes('/map')) return 'Peta Sebaran';
+    if (pathname.includes('/master')) return 'Master Data';
+    if (pathname.includes('/alamat')) return 'Master Alamat';
+    if (pathname.includes('/lowongan')) return 'Bursa Karir';
+    if (pathname.includes('/profile') || pathname.includes('/profil')) return 'Profil';
+    if (pathname.includes('/tracer')) return 'Tracer Study';
+    if (pathname.includes('/settings')) return 'Pengaturan';
+    return 'SIA Portal';
+  };
+  const pageTitle = getPageTitle(location.pathname);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -17,23 +33,7 @@ export default function Layout() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    const fetchInstitution = async () => {
-      try {
-        const data = await pb.collection('institution_profile').getFirstListItem('').catch(() => null);
-        if (data) {
-          const logoUrl = data.logo ? pb.files.getURL(data, data.logo) : null;
-          setInstitution({
-            nama: data.nama || 'SIA Portal',
-            logoUrl
-          });
-        }
-      } catch (err) {
-        console.error("Gagal memuat institusi di header:", err);
-      }
-    };
-    fetchInstitution();
-  }, []);
+
 
   return (
     <div className="flex flex-col h-screen bg-main overflow-hidden transition-colors duration-500">
@@ -54,22 +54,10 @@ export default function Layout() {
             <Menu size={22} />
           </button>
           
-          <div className="flex items-center gap-3">
-            {institution.logoUrl ? (
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-blue-500/20 flex items-center justify-center bg-white border border-border-subtle p-0.5">
-                <img src={institution.logoUrl} alt="Logo Institusi" className="w-full h-full object-contain rounded-lg" />
-              </div>
-            ) : (
-              <div className="bg-brand-primary p-2 rounded-xl shadow-lg shadow-blue-500/20 flex items-center justify-center">
-                <GraduationCap size={18} className="text-white" />
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="font-display font-black text-primary tracking-tighter leading-none text-lg line-clamp-1 max-w-[150px] sm:max-w-[300px]">
-                {institution.nama}
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-primary opacity-80 mt-0.5">Alumni System</span>
-            </div>
+          <div className="flex items-center ml-2">
+            <h1 className="font-display font-bold text-slate-800 dark:text-slate-200 text-lg sm:text-xl tracking-tight">
+              {pageTitle}
+            </h1>
           </div>
         </div>
 

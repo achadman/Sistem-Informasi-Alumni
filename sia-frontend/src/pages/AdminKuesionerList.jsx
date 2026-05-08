@@ -68,13 +68,7 @@ export default function AdminKuesionerList() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <FileQuestion className="text-brand-primary" size={32} /> Manajemen Kuesioner
-          </h1>
-          <p className="text-slate-500 mt-2 font-medium">Buat dan kelola kuesioner/tracer study dinamis untuk alumni.</p>
-        </div>
+      <div className="flex justify-end mb-4">
         <button 
           onClick={handleCreateNew}
           disabled={creating}

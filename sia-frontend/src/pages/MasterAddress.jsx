@@ -218,11 +218,7 @@ export default function MasterAddress() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      <header className="flex flex-col gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Master Alamat</h1>
-          <p className="text-slate-500 text-sm mt-1">Kelola data hierarki wilayah Indonesia (Provinsi sampai Desa).</p>
-        </div>
+      <header className="flex justify-end gap-3 mb-2">
         <div className="flex flex-wrap items-center gap-2">
            <div className="hidden sm:flex bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 items-center gap-2 text-sm font-bold">
               <AlertCircle size={16} />

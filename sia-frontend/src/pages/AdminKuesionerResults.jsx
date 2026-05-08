@@ -8,6 +8,7 @@ import {
 import { pb } from '../lib/pb';
 import ReactECharts from 'echarts-for-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { generateExcel } from '../lib/excelExport';
 
 const CHART_COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -115,6 +116,7 @@ export default function AdminKuesionerResults() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState({});
   const [error, setError] = useState(null);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -168,6 +170,71 @@ export default function AdminKuesionerResults() {
     const link = document.createElement('a');
     link.href = url; link.download = `${questionnaire?.title || 'kuesioner'}_results.csv`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportExcel = async () => {
+    // Siapkan Data Sheet 1 (Statistik Ringkasan)
+    const questionsData = questions.map((q, idx) => {
+        const { stats } = getStats(q);
+        let jawabanStat = '-';
+        if (q.type === 'essay') {
+            jawabanStat = 'Jawaban berupa teks esai';
+        } else {
+            jawabanStat = Object.entries(stats).map(([k, v]) => `${k} (${v} orang)`).join(' | ');
+        }
+        return {
+            no: idx + 1,
+            pertanyaan: q.title,
+            tipe: q.type === 'radio' ? 'Pilihan Ganda' : q.type === 'checkbox' ? 'Kotak Centang' : 'Esai',
+            jawaban: jawabanStat
+        }
+    });
+    
+    const sheet1 = {
+      sheetName: 'Statistik Kuesioner',
+      columns: [
+        { header: 'No', key: 'no', width: 5 },
+        { header: 'Pertanyaan', key: 'pertanyaan', width: 50 },
+        { header: 'Tipe Jawaban', key: 'tipe', width: 15 },
+        { header: 'Distribusi Jawaban', key: 'jawaban', width: 60 },
+      ],
+      data: questionsData
+    };
+
+    // Siapkan Data Sheet 2 (Detail Jawaban per Orang)
+    const respondentColumns = [
+      { header: 'No', key: 'no', width: 5 },
+      { header: 'Nama Lengkap', key: 'nama', width: 25 },
+      { header: 'NIM', key: 'nim', width: 15 },
+      { header: 'Tanggal Isi', key: 'tanggal', width: 15 },
+      ...questions.map((q, idx) => ({ header: `Q${idx+1}: ${q.title}`, key: `q_${q.id}`, width: 30 }))
+    ];
+
+    const respondentData = responses.map((r, idx) => {
+      const user = r.user || {};
+      const rowData = {
+        no: idx + 1,
+        nama: user.name || '-',
+        nim: user.nim || '-',
+        tanggal: new Date(r.created).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }),
+      };
+      questions.forEach(q => {
+        let val = r.answers[q.id];
+        if (Array.isArray(val)) val = val.join('; ');
+        rowData[`q_${q.id}`] = val || '-';
+      });
+      return rowData;
+    });
+
+    const sheet2 = {
+      sheetName: 'Data Responden Detail',
+      columns: respondentColumns,
+      data: respondentData
+    };
+
+    await generateExcel(`${questionnaire?.title || 'kuesioner'}_results_laporan`, [sheet1, sheet2]);
+    setIsExportMenuOpen(false);
   };
 
   // Aggregate stats per question
@@ -261,27 +328,57 @@ export default function AdminKuesionerResults() {
     <div className="max-w-[1440px] mx-auto space-y-6 animate-in fade-in duration-500 pb-16 px-4 lg:px-[2.5%]">
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
         <div>
           <button
             onClick={() => navigate('/admin/kuesioner')}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 font-bold mb-3 text-xs transition-colors uppercase tracking-wider"
+            className="flex items-center gap-1.5 text-slate-400 hover:text-indigo-600 font-bold text-xs transition-colors uppercase tracking-wider"
           >
             <ArrowLeft size={14} /> Kembali
           </button>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">
-            {questionnaire?.title || 'Hasil Kuesioner'}
-          </h1>
-          {questionnaire?.description && (
-            <p className="text-slate-500 mt-1 text-sm font-medium max-w-xl">{questionnaire.description}</p>
-          )}
         </div>
-        <button
-          onClick={handleExportCSV}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all shrink-0"
-        >
-          <Download size={15} /> Ekspor CSV
-        </button>
+        <div className="relative">
+          {isExportMenuOpen && (
+            <div className="fixed inset-0 z-10" onClick={() => setIsExportMenuOpen(false)}></div>
+          )}
+          <button
+            onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all shrink-0 z-20 relative"
+          >
+            <Download size={15} /> Unduh Laporan <ChevronDown size={14} className={`ml-1 transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {/* Dropdown Menu */}
+          <div className={`absolute right-0 top-full mt-2 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 transition-all origin-top-right overflow-hidden ${isExportMenuOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}>
+            <div className="p-1.5 space-y-0.5">
+              <button
+                onClick={handleExportExcel}
+                className="w-full flex items-start gap-3 px-3 py-2.5 text-left rounded-xl transition-colors hover:bg-slate-50 group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
+                  <FileText size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-slate-800">Excel Lanjutan (.xlsx)</p>
+                  <p className="text-[10px] text-slate-400 font-medium leading-snug mt-0.5">Format rapi, berwarna & multi-sheet</p>
+                </div>
+              </button>
+              <div className="h-px bg-slate-100 my-1 mx-2"></div>
+              <button
+                onClick={handleExportCSV}
+                className="w-full flex items-start gap-3 px-3 py-2.5 text-left rounded-xl transition-colors hover:bg-slate-50 group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0 group-hover:bg-slate-200 transition-colors">
+                  <AlignLeft size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-600">Data Mentah (.csv)</p>
+                  <p className="text-[10px] text-slate-400 font-medium leading-snug mt-0.5">Polos tanpa styling format</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Stat Cards ── */}

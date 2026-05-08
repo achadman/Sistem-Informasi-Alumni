@@ -190,9 +190,66 @@ export default function AlumniList() {
         notify.info('Hanya mengekspor 5000 data terbaru untuk performa.');
       }
 
-      const headers = ["NIM", "Nama", "Tahun Lulus", "Gender", "Program Studi", "Status Kerja", "Instansi"];
+      const headers = [
+        "NIM", 
+        "Nama", 
+        "Tempat Lahir", 
+        "Tanggal Lahir", 
+        "Jenis Kelamin", 
+        "Agama", 
+        "Golongan Darah", 
+        "Alamat", 
+        "RT", 
+        "RW", 
+        "Kelurahan", 
+        "Kecamatan", 
+        "Kota/Kabupaten", 
+        "Provinsi", 
+        "Negara", 
+        "Email", 
+        "No. HP", 
+        "Tahun Lulus", 
+        "Program Studi", 
+        "Fakultas",
+        "IPK", 
+        "Status Kerja", 
+        "Instansi/Perusahaan/Tujuan", 
+        "Jabatan/Posisi/Jenjang", 
+        "Keterangan", 
+        "Semester DO",
+        "Terverifikasi",
+        "Open to Work"
+      ];
+      
       const rows = allData.map(a => [
-        `"${a.nim || ''}"`, `"${a.nama || ''}"`, a.tahun_lulus, a.gender, `"${a.prodi || ''}"`, `"${a.status_kerja || ''}"`, `"${a.np || ''}"`
+        `"${a.nim || ''}"`,
+        `"${a.nama || ''}"`,
+        `"${a.tempat_lahir || ''}"`,
+        `"${a.tanggal_lahir ? a.tanggal_lahir.split('T')[0] : ''}"`,
+        `"${a.gender || ''}"`,
+        `"${a.agama || ''}"`,
+        `"${a.golongan_darah || ''}"`,
+        `"${a.alamat || ''}"`,
+        `"${a.rt || ''}"`,
+        `"${a.rw || ''}"`,
+        `"${a.kelurahan || ''}"`,
+        `"${a.kecamatan || ''}"`,
+        `"${a.kota_kabupaten || a.kota || ''}"`,
+        `"${a.provinsi || ''}"`,
+        `"${a.negara || ''}"`,
+        `"${a.email || ''}"`,
+        `"${a.no_hp || ''}"`,
+        a.tahun_lulus,
+        `"${a.prodi || ''}"`,
+        `"${a.fakultas || ''}"`,
+        a.ipk,
+        `"${a.status_kerja || ''}"`,
+        `"${a.np || ''}"`,
+        `"${a.jabatan || ''}"`,
+        `"${a.keterangan || ''}"`,
+        a.semester_dropout || 0,
+        a.verified ? 'Ya' : 'Tidak',
+        a.is_open_to_work ? 'Ya' : 'Tidak'
       ]);
 
       const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
@@ -213,13 +270,7 @@ export default function AlumniList() {
   return (
     <div className="flex flex-col animate-in fade-in duration-500 pb-12">
       <div className="flex-none space-y-3 pb-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Database Alumni</h1>
-            <p className="text-slate-400 text-xs mt-0.5 font-medium">Kelola dan pantau data alumni institusi secara real-time.</p>
-          </div>
-          
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-end gap-3">
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
               <input 
@@ -263,7 +314,6 @@ export default function AlumniList() {
                 </button>
               </div>
             )}
-          </div>
         </div>
 
         {/* Filter Panel */}

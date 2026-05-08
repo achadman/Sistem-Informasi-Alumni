@@ -48,7 +48,7 @@ export default function AdminCompanyVerification() {
       setCompanies(prev =>
         prev.map(c => c.id === companyId ? { ...c, verified: verify } : c)
       );
-      showToast(verify ? 'Perusahaan berhasil diverifikasi!' : 'Verifikasi dibatalkan');
+      showToast(verify ? 'Perusahaan diverifikasi! Email notifikasi terkirim.' : 'Verifikasi dibatalkan');
     } catch (err) {
       showToast('Gagal memperbarui status.', 'error');
     } finally {
@@ -83,11 +83,7 @@ export default function AdminCompanyVerification() {
 
       <div className="max-w-[1440px] mx-auto space-y-8">
         {/* Header & Mini Stats */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Verifikasi Perusahaan</h1>
-            <p className="text-slate-500 font-medium mt-1">Kelola pendaftaran dan status kemitraan industri</p>
-          </div>
+        <div className="flex flex-col lg:flex-row lg:items-end justify-end gap-6 mb-2">
           
           <div className="flex gap-3">
             {[

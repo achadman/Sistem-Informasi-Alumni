@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { pb } from '../lib/pb';
 import { formatDate } from '../lib/utils';
+import { toast } from 'sonner';
 
 const STATUS_OPTIONS = [
   { value: 'Pending', label: 'Antrean', color: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -96,8 +97,14 @@ export default function IndustryApplicants() {
       setApplications(prev =>
         prev.map(a => a.id === appId ? { ...a, status: newStatus } : a)
       );
+      
+      const statusLabel = STATUS_OPTIONS.find(s => s.value === newStatus)?.label || newStatus;
+      toast.success(`Status berhasil diubah menjadi ${statusLabel}`, {
+        description: 'Notifikasi email telah dikirimkan ke pelamar.'
+      });
     } catch (err) {
       console.error('Status update error:', err);
+      toast.error('Gagal mengubah status pelamar');
     } finally {
       setUpdatingId(null);
     }

@@ -39,7 +39,9 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
     keterangan: 'Lulus',
     semester_dropout: 0,
     prodi: '',
-    ipk: ''
+    ipk: '',
+    tempat_lahir: '',
+    tanggal_lahir: ''
   });
 
   useEffect(() => {
@@ -132,7 +134,9 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         keterangan: 'Lulus',
         semester_dropout: 0,
         prodi: '',
-        ipk: ''
+        ipk: '',
+        tempat_lahir: '',
+        tanggal_lahir: ''
       });
       setSelectedFakultasId('');
     }
@@ -215,7 +219,9 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         keterangan: 'Lulus',
         semester_dropout: 0,
         prodi: '',
-        ipk: ''
+        ipk: '',
+        tempat_lahir: '',
+        tanggal_lahir: ''
       });
     } catch (err) {
       console.error("Gagal simpan alumni:", err);
@@ -277,6 +283,16 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nama Lengkap</label>
                 <input required name="nama" value={formData.nama} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all outline-none" placeholder="Nama sesuai ijazah" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Tempat Lahir</label>
+                  <input name="tempat_lahir" value={formData.tempat_lahir} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none" placeholder="Contoh: Jakarta" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Tanggal Lahir</label>
+                  <input type="date" name="tanggal_lahir" value={formData.tanggal_lahir ? formData.tanggal_lahir.split('T')[0] : ''} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

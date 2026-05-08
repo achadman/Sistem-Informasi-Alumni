@@ -22,14 +22,14 @@ export default function ImportAlumniModal({ isOpen, onClose, onSuccess }) {
 
   const handleDownloadTemplate = () => {
     const headers = [
-      "nim", "nama", "gender", "agama", "tahun_lulus", "golongan_darah", 
+      "nim", "nama", "tempat_lahir", "tanggal_lahir", "gender", "agama", "tahun_lulus", "golongan_darah", 
       "email", "no_hp", "alamat", "negara", "provinsi", "kota", 
       "kecamatan", "kelurahan", "rw", "rt", "status_kerja", "instansi", 
       "jabatan", "keterangan", "semester_dropout", "prodi", "fakultas", "ipk"
     ];
     
     const exampleData = [
-      "201011400", "Budi Santoso", "L", "Islam", "2024", "O", 
+      "201011400", "Budi Santoso", "Jakarta", "2002-05-20", "L", "Islam", "2024", "O", 
       "budi@email.com", "081234567890", "Jl. Mawar No 1", "Indonesia", "Jawa Barat", "Bandung", 
       "Coblong", "Dago", "001", "002", "Bekerja", "PT Teknologi Inovasi", 
       "Software Engineer", "Lulus", "0", "Teknik Informatika", "Fakultas Teknik", "3.85"
@@ -77,6 +77,8 @@ export default function ImportAlumniModal({ isOpen, onClose, onSuccess }) {
             validData.push({
               nim: row.nim.trim(),
               nama: row.nama.trim(),
+              tempat_lahir: row.tempat_lahir || '',
+              tanggal_lahir: row.tanggal_lahir || '',
               gender: row.gender === 'P' ? 'P' : 'L', // default L
               agama: row.agama || '',
               tahun_lulus: parseInt(row.tahun_lulus) || new Date().getFullYear(),
@@ -147,40 +149,67 @@ export default function ImportAlumniModal({ isOpen, onClose, onSuccess }) {
     let success = 0;
     let failed = 0;
 
-    for (let i = 0; i < parsedData.length; i++) {
-      try {
-        // Cek apakah NIM sudah ada
-        const existing = await pb.collection('alumni').getList(1, 1, {
-          filter: `nim="${parsedData[i].nim}"`,
-          requestKey: null
+    try {
+      // OPTIMIZATION 1: Fetch all existing NIMs at once to avoid thousands of individual check requests
+      // This is safe for ~100k records as we only fetch the 'nim' field (very small size)
+      const existingRecords = await pb.collection('alumni').getFullList({ 
+        fields: 'nim',
+        requestKey: null 
+      });
+      const existingNims = new Set(existingRecords.map(r => r.nim));
+
+      // OPTIMIZATION 2: Filter duplicates locally
+      const toImport = parsedData.filter(item => {
+        if (existingNims.has(item.nim)) {
+          failed++;
+          return false;
+        }
+        return true;
+      });
+
+      setFailedCount(failed);
+      
+      if (toImport.length === 0) {
+        setProgress(100);
+        setIsUploading(false);
+        return;
+      }
+
+      // OPTIMIZATION 3: Chunked Parallel Processing
+      // We process 50 records at a time in parallel to maximize throughput without crashing the browser/server
+      const chunkSize = 50;
+      for (let i = 0; i < toImport.length; i += chunkSize) {
+        const chunk = toImport.slice(i, i + chunkSize);
+        
+        // Execute chunk in parallel
+        const results = await Promise.allSettled(
+          chunk.map(record => pb.collection('alumni').create(record, { requestKey: null }))
+        );
+
+        results.forEach(res => {
+          if (res.status === 'fulfilled') {
+            success++;
+          } else {
+            console.error("Gagal import record:", res.reason);
+            failed++;
+          }
         });
 
-        if (existing.items.length > 0) {
-          // Jika sudah ada, lewati atau update (saat ini kita skip untuk keamanan)
-          failed++;
-        } else {
-          // Buat record baru
-          await pb.collection('alumni').create(parsedData[i], { requestKey: null });
-          success++;
-        }
-      } catch (err) {
-        console.error(`Gagal import baris ${i + 2}:`, err);
-        failed++;
+        setSuccessCount(success);
+        setFailedCount(failed);
+        setProgress(Math.round(((success + failed) / parsedData.length) * 100));
       }
-      
-      setProgress(Math.round(((i + 1) / totalRows) * 100));
-      setSuccessCount(success);
-      setFailedCount(failed);
-    }
 
-    setIsUploading(false);
-    
-    // Auto close jika berhasil semua atau sebagian besar
-    if (success > 0) {
-      setTimeout(() => {
-        onSuccess();
-        handleClose();
-      }, 2000);
+    } catch (err) {
+      console.error("Fatal Import Error:", err);
+    } finally {
+      setIsUploading(false);
+      if (success > 0) {
+        setTimeout(() => {
+          onSuccess();
+          handleClose();
+        }, 2000);
+      }
     }
   };
 
