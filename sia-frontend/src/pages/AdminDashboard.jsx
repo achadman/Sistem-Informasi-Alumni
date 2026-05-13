@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
 import { 
   Briefcase, 
@@ -15,7 +16,10 @@ import {
   BarChart as BarChartIcon,
   Info,
   ChevronDown,
-  Check
+  Check,
+  Download,
+  X,
+  FileText
 } from 'lucide-react';
 import { pb } from '../lib/pb';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -89,8 +93,11 @@ export default function AdminDashboard() {
   // New States for Chart Filters
   const [activePieChart, setActivePieChart] = useState('karir'); // 'karir' | 'fakultas'
   const [activeBarChart, setActiveBarChart] = useState('geografis'); // 'geografis' | 'prodi' | 'dropout' | 'gender'
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
 
   useEffect(() => {
+    setPortalTarget(document.getElementById('navbar-actions-portal'));
     const controller = new AbortController();
     fetchDashboardData(controller.signal);
     return () => controller.abort();
@@ -422,33 +429,94 @@ export default function AdminDashboard() {
     ]
   };
 
-  const exportToCSV = () => {
-    if (!data.alumni || data.alumni.length === 0) return;
+  const exportAllStatsToCSV = () => {
+    if (loading) return;
     
-    const headers = ["NIM", "Nama", "Tahun Lulus", "Prodi", "Gender", "Status Kerja", "Provinsi", "Kota"];
-    const rows = data.alumni.map(a => [
-      a.nim, `"${a.nama}"`, a.tahun_lulus, `"${a.prodi}"`, a.gender, `"${a.status_kerja || '-'}"`, `"${a.provinsi || '-'}"`, `"${a.kota || '-'}"`
-    ]);
-    
-    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const rows = [
+      ["Kategori", "Sub Kategori", "Nilai"]
+    ];
+
+    // Status Karir
+    if (data.stats.workStatus) {
+      data.stats.workStatus.forEach(item => {
+        rows.push(["Distribusi Karir", `"${item.name}"`, item.value]);
+      });
+    }
+
+    // Fakultas
+    if (data.stats.fakultasStats) {
+      data.stats.fakultasStats.forEach(item => {
+        rows.push(["Distribusi Fakultas", `"${item.name}"`, item.value]);
+      });
+    }
+
+    // Prodi
+    if (data.stats.prodiStats) {
+      data.stats.prodiStats.forEach(item => {
+        rows.push(["Distribusi Program Studi", `"${item.name}"`, item.value]);
+      });
+    }
+
+    // Geografis
+    if (data.stats.regionStats) {
+      data.stats.regionStats.forEach(item => {
+        rows.push(["Sebaran Wilayah", `"${item.name}"`, item.value]);
+      });
+    }
+
+    // Drop Out
+    if (data.stats.dropoutStats) {
+      data.stats.dropoutStats.forEach((val, idx) => {
+        rows.push(["Drop Out", `"Semester ${idx + 1}"`, val]);
+      });
+      const totalDO = data.stats.dropoutStats.reduce((a,b)=>a+b,0);
+      rows.push(["Drop Out", `"Total DO"`, totalDO]);
+      rows.push(["Drop Out", `"Churn Rate"`, `"${data.stats.churnRate}"`]);
+    }
+
+    // Gender
+    if (data.stats.genderBatch) {
+      const { batches, male, female } = data.stats.genderBatch;
+      if (batches && batches.length > 0) {
+        batches.forEach((b, i) => {
+          rows.push(["Demografi Gender", `"Angkatan ${b} - Laki-laki"`, male[i] || 0]);
+          rows.push(["Demografi Gender", `"Angkatan ${b} - Perempuan"`, female[i] || 0]);
+        });
+      }
+    }
+
+    // Total Alumni & Tracer
+    rows.push(["Ringkasan", '"Total Alumni Database"', data.alumni?.length || 0]);
+    rows.push(["Ringkasan", '"Total Responden Tracer"', data.tracer?.length || 0]);
+
+    const csvContent = "\uFEFF" + rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `Data_Alumni_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Rekap_Statistik_Dashboard_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    setIsExportModalOpen(false);
   };
 
   return (
     <div className="space-y-6 md:space-y-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="flex justify-end mb-2">
-        <button onClick={exportToCSV} className="px-6 py-2.5 bg-blue-600 rounded-2xl text-xs font-black text-white shadow-xl shadow-blue-500/20 hover:bg-blue-500 transition-all flex items-center gap-2 uppercase tracking-wider active:scale-95">
-          Ekspor CSV
-        </button>
-      </header>
+      {portalTarget && createPortal(
+        <div className="flex items-center justify-end gap-3">
+          <button 
+            onClick={() => setIsExportModalOpen(true)} 
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:brightness-110 transition-all active:scale-95 text-sm uppercase tracking-wider"
+          >
+            <Download size={16} />
+            <span className="hidden md:inline">Ekspor CSV</span>
+          </button>
+        </div>,
+        portalTarget
+      )}
 
       {/* SECTION 1: PIE CHART (Komposisi Data) */}
       <section className="premium-card flex flex-col lg:flex-row gap-6 lg:gap-8">
@@ -557,6 +625,78 @@ export default function AdminDashboard() {
             {!loading ? renderBarStats() : <div className="text-sm font-bold text-slate-400 animate-pulse">Memuat data...</div>}
          </div>
       </section>
+
+      <AnimatePresence>
+        {isExportModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+            onClick={() => setIsExportModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <Download size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-base">Ekspor Data Dashboard</h3>
+                    <p className="text-xs text-slate-400 font-medium">Unduh rekap statistik ke CSV</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsExportModalOpen(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-start gap-3">
+                  <div className="mt-0.5"><Info size={16} className="text-blue-600" /></div>
+                  <p className="text-sm font-semibold text-blue-800 leading-relaxed">
+                    Anda akan mengunduh seluruh data agregat statistik yang ada di dashboard ini.
+                  </p>
+                </div>
+
+                <div className="space-y-2 text-sm text-slate-500">
+                  <p className="font-medium">File CSV akan berisi rekapitulasi:</p>
+                  <ul className="text-xs text-slate-400 leading-relaxed list-disc pl-4 space-y-1">
+                    <li>Distribusi Status Karir & Tracer Study</li>
+                    <li>Sebaran Geografis Wilayah</li>
+                    <li>Rasio Lulusan per Fakultas & Program Studi</li>
+                    <li>Demografi Gender per Angkatan</li>
+                    <li>Analisis Tingkat Drop Out (DO)</li>
+                  </ul>
+                  <p className="text-xs text-slate-400 mt-2 italic">Format data akan disatukan dalam satu file berbentuk baris kategori.</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  onClick={() => setIsExportModalOpen(false)}
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={exportAllStatsToCSV}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Download size={15} /> Ya, Download CSV
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

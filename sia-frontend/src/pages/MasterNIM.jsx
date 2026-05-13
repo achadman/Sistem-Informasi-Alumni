@@ -293,53 +293,53 @@ export default function MasterNIM() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-end gap-6 mb-2">
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          {selectedUsers.length > 0 && (
-            <div className="flex justify-center items-center gap-2 bg-brand-light/50 px-4 py-2 rounded-xl border border-brand-primary/20 shadow-sm animate-in fade-in zoom-in duration-300">
-              <span className="text-sm font-bold text-brand-primary whitespace-nowrap">{selectedUsers.length} Terpilih</span>
-              <div className="w-px h-5 bg-brand-primary/20 mx-1"></div>
-              <button 
-                onClick={handleBulkEditPassword}
-                className="p-1.5 text-brand-primary hover:bg-white rounded-lg transition-all"
-                title="Beri Satu Password untuk Semua"
-              >
-                <Edit3 size={18} />
-              </button>
-              <button 
-                onClick={handleBulkDelete}
-                className="p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all"
-                title="Hapus Akun Terpilih"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
-          )}
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text"
-              placeholder="Cari Nama / NIM..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all outline-none shadow-sm"
-            />
-          </div>
-          <button 
-            onClick={handleOpenModal}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-brand-primary text-white rounded-2xl font-bold shadow-xl shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95"
-          >
-            <Plus size={20} />
-            <span className="md:inline">Tambah Akun</span>
-          </button>
-        </div>
-      </div>
-
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-soft overflow-hidden">
-        <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2">
+        <div className="p-4 md:p-6 border-b border-slate-50 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/50">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 text-lg shrink-0">
             <Key className="text-brand-primary" size={20} /> Data Akun Login
           </h3>
+          
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto justify-end">
+            {selectedUsers.length > 0 && (
+              <div className="flex justify-center items-center gap-2 bg-brand-light/50 px-3 py-1.5 rounded-xl border border-brand-primary/20 shadow-sm animate-in fade-in zoom-in duration-300 w-full sm:w-auto shrink-0">
+                <span className="text-xs font-bold text-brand-primary whitespace-nowrap">{selectedUsers.length} Terpilih</span>
+                <div className="w-px h-4 bg-brand-primary/20 mx-1"></div>
+                <button 
+                  onClick={handleBulkEditPassword}
+                  className="p-1.5 text-brand-primary hover:bg-white rounded-lg transition-all"
+                  title="Beri Satu Password untuk Semua"
+                >
+                  <Edit3 size={16} />
+                </button>
+                <button 
+                  onClick={handleBulkDelete}
+                  className="p-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-all"
+                  title="Hapus Akun Terpilih"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+            
+            <div className="relative w-full sm:w-64 shrink-0 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" size={18} />
+              <input 
+                type="text"
+                placeholder="Cari Nama / NIM..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all outline-none shadow-sm placeholder:text-slate-400"
+              />
+            </div>
+            
+            <button 
+              onClick={handleOpenModal}
+              className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-md shadow-brand-primary/20 hover:brightness-110 transition-all active:scale-95 text-sm"
+            >
+              <Plus size={18} />
+              <span>Tambah Akun</span>
+            </button>
+          </div>
         </div>
         
         <div className="overflow-x-auto">

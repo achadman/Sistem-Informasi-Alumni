@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -41,7 +41,7 @@ export default function AdminMap() {
   const [alumni, setAlumni] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = useRef(null);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [mapCenter, setMapCenter] = useState([-2.5489, 118.0149]);
   const [zoom, setZoom] = useState(5);
@@ -53,7 +53,9 @@ export default function AdminMap() {
   const [confirmedSearchTerm, setConfirmedSearchTerm] = useState('');
 
   const handleSearchTrigger = () => {
-    setConfirmedSearchTerm(searchTerm);
+    if (searchInputRef.current) {
+      setConfirmedSearchTerm(searchInputRef.current.value);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -65,14 +67,20 @@ export default function AdminMap() {
   // UI States
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
         const [alumniCountRes, jobsCountRes, regionRes, workRes] = await Promise.all([
-          pb.collection('alumni').getList(1, 1),
-          pb.collection('job_postings').getList(1, 1),
-          pb.collection('view_statistik_wilayah').getFullList(),
-          pb.collection('view_statistik_kerja').getFullList()
+          pb.collection('alumni').getList(1, 1, { $autoCancel: false }),
+          pb.collection('job_postings').getList(1, 1, { $autoCancel: false }),
+          pb.collection('view_statistik_wilayah').getFullList({ $autoCancel: false }),
+          pb.collection('view_statistik_kerja').getFullList({ $autoCancel: false })
         ]);
+
+        const jobRecords = await pb.collection('job_postings').getFullList({
+          expand: 'company',
+          filter: 'status="Aktif"',
+          $autoCancel: false
+        });
 
         setCounts({
           alumni: alumniCountRes.totalItems,
@@ -84,57 +92,53 @@ export default function AdminMap() {
           workStatus: workRes.map(w => [w.name, w.value])
         });
 
-        const [alumniRecords, jobRecords] = await Promise.all([
-          pb.collection('alumni').getList(1, 1000, { 
-            sort: '-created',
-            fields: 'id,nama,nim,provinsi,kota,status_kerja,tahun_lulus'
-          }),
-          pb.collection('job_postings').getFullList({
-            expand: 'company',
-            filter: 'status="Aktif"'
-          })
-        ]);
-        
-        const processedAlumni = alumniRecords.items.map(a => {
-          const rawCoords = getCoordinates(a.provinsi, a.kota);
-          return { ...a, coords: { lat: rawCoords.lat + (Math.random() - 0.5) * 0.02, lng: rawCoords.lng + (Math.random() - 0.5) * 0.02 } };
-        });
-        
         const processedJobs = jobRecords.map(j => {
           const rawCoords = getCoordinates(j.lokasi, '');
           return { ...j, coords: { lat: rawCoords.lat + (Math.random() - 0.5) * 0.02, lng: rawCoords.lng + (Math.random() - 0.5) * 0.02 } };
         });
 
-        setAlumni(processedAlumni);
         setJobs(processedJobs);
       } catch (err) {
-        console.error("Gagal ambil data peta:", err);
+        console.error("Gagal ambil data awal peta:", err);
+      }
+    };
+    fetchInitialData();
+  }, []);
+
+  // Fetch Alumni directly from Backend based on Search
+  useEffect(() => {
+    const fetchAlumni = async () => {
+      setLoading(true);
+      try {
+        let filterStr = '';
+        if (confirmedSearchTerm) {
+          const term = confirmedSearchTerm.replace(/"/g, ''); // Hindari injection
+          filterStr = `nama ~ "${term}" || kota_kabupaten ~ "${term}" || provinsi ~ "${term}" || nim ~ "${term}"`;
+        }
+
+        const alumniRecords = await pb.collection('alumni').getList(1, 1000, { 
+          sort: '-created',
+          filter: filterStr,
+          fields: 'id,nama,nim,provinsi,kota_kabupaten,status_kerja,tahun_lulus'
+        });
+        
+        const processedAlumni = alumniRecords.items.map(a => {
+          const rawCoords = getCoordinates(a.provinsi, a.kota_kabupaten);
+          return { ...a, kota: a.kota_kabupaten, coords: { lat: rawCoords.lat + (Math.random() - 0.5) * 0.02, lng: rawCoords.lng + (Math.random() - 0.5) * 0.02 } };
+        });
+
+        setAlumni(processedAlumni);
+      } catch (err) {
+        console.error("Gagal ambil data peta alumni:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchAlumni();
+  }, [confirmedSearchTerm]);
 
-  const filteredAlumni = useMemo(() => {
-    const term = confirmedSearchTerm.trim().toLowerCase();
-    if (!term) return alumni;
-
-    const results = [];
-    for (let i = 0; i < alumni.length; i++) {
-      const a = alumni[i];
-      if (
-        (a.nama && a.nama.toLowerCase().includes(term)) ||
-        (a.nim && a.nim.toLowerCase().includes(term)) ||
-        (a.kota && a.kota.toLowerCase().includes(term)) ||
-        (a.provinsi && a.provinsi.toLowerCase().includes(term))
-      ) {
-        results.push(a);
-      }
-      if (results.length >= 500) break; 
-    }
-    return results;
-  }, [alumni, confirmedSearchTerm]);
+  // Alias untuk mempermudah tanpa mengubah struktur JSX di bawah
+  const filteredAlumni = alumni;
 
   const filteredJobs = useMemo(() => {
     const term = confirmedSearchTerm.toLowerCase();
@@ -145,12 +149,6 @@ export default function AdminMap() {
       (j.lokasi && j.lokasi.toLowerCase().includes(term))
     );
   }, [jobs, confirmedSearchTerm]);
-
-  const isCapped = useMemo(() => {
-    if (!confirmedSearchTerm) return false;
-    if (activeTab === 'Alumni') return filteredAlumni.length >= 500;
-    return false;
-  }, [filteredAlumni, activeTab, confirmedSearchTerm]);
 
   // TOP REGIONS - Diambil dari state sideStats (View-powered)
   const topRegionsDisplay = useMemo(() => sideStats.regions, [sideStats.regions]);
@@ -163,40 +161,31 @@ export default function AdminMap() {
   };
 
   return (
-    <div className="h-full flex flex-col space-y-4 animate-in fade-in duration-700 pb-10">
-      <header className="flex justify-end gap-4 shrink-0 mb-2">
-
-        <div className="relative group w-full lg:w-72">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary opacity-60 group-focus-within:text-brand-primary transition-colors" size={18} />
-          <input 
-            type="text" 
-            placeholder="Cari nama atau kota..." 
-            className="pl-11 pr-24 py-3 bg-surface rounded-2xl border border-border-subtle shadow-sm w-full outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm text-primary font-bold placeholder:text-secondary placeholder:font-medium"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleKeyDown}
-          />
-          <button 
-            onClick={handleSearchTrigger}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-sm hover:brightness-110 active:scale-95 transition-all"
-          >
-            Cari
-          </button>
-          {isCapped && (
-            <div className="absolute right-4 top-full mt-2 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg shadow-sm animate-in fade-in zoom-in duration-300 z-[100]">
-              <p className="text-[10px] font-bold text-amber-700 flex items-center gap-1.5">
-                <Info size={12} /> Menampilkan 500 hasil teratas untuk performa
-              </p>
-            </div>
-          )}
-        </div>
-      </header>
-
+    <div className="flex flex-col animate-in fade-in duration-700 pb-10">
       {/* Main Content Area */}
-      <div className="flex flex-col lg:flex-row gap-4 items-stretch w-full relative">
+      <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full relative min-h-[600px]">
         
-        {/* Side Panel (Native Scroll) */}
-        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col gap-4 animate-in fade-in slide-in-from-left-4 pb-4">
+        {/* Side Panel (No internal scroll) */}
+        <div className="w-full lg:w-[320px] xl:w-[360px] flex flex-col gap-4 animate-in fade-in slide-in-from-left-4">
+          
+          {/* Search Bar */}
+          <div className="relative group w-full shrink-0">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-primary transition-colors" size={18} />
+            <input 
+              type="text" 
+              placeholder="Cari nama atau kota..." 
+              className="pl-11 pr-24 py-3 bg-white rounded-2xl border border-slate-200 shadow-sm w-full outline-none focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary transition-all text-sm text-slate-800 font-bold placeholder:text-slate-400 placeholder:font-medium"
+              ref={searchInputRef}
+              defaultValue={confirmedSearchTerm}
+              onKeyDown={handleKeyDown}
+            />
+            <button 
+              onClick={handleSearchTrigger}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-md shadow-blue-500/20 hover:bg-blue-700 active:scale-95 transition-all"
+            >
+              Cari
+            </button>
+          </div>
              {/* Filter Toggle */}
              <div className="bg-surface p-1.5 rounded-2xl border border-border-subtle shadow-sm flex items-center shrink-0">
                {['Alumni', 'Lowongan'].map(tab => (
@@ -274,7 +263,7 @@ export default function AdminMap() {
            </div>
 
         {/* Map Container */}
-        <div className="w-full min-h-[500px] lg:h-auto flex flex-col bg-surface p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2.5rem] shadow-soft border border-border-subtle relative z-0 flex-1 mb-4">
+        <div className="w-full flex flex-col bg-white p-1.5 md:p-2 rounded-[1.5rem] md:rounded-[2rem] shadow-sm border border-slate-200 relative z-0 flex-1 mb-4 min-h-[500px]">
           {loading ? (
             <div className="w-full h-full flex flex-col items-center justify-center bg-main gap-4 rounded-[1.2rem] md:rounded-[2rem]">
                <div className="w-10 h-10 md:w-12 md:h-12 border-4 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin"></div>
@@ -299,6 +288,7 @@ export default function AdminMap() {
                 
                 {activeTab === 'Alumni' && (
                   <MarkerClusterGroup 
+                    key={`alumni-cluster-${confirmedSearchTerm}`}
                     chunkedLoading
                     iconCreateFunction={(cluster) => {
                       return L.divIcon({
@@ -359,6 +349,7 @@ export default function AdminMap() {
 
                 {activeTab === 'Lowongan' && (
                   <MarkerClusterGroup 
+                    key={`jobs-cluster-${confirmedSearchTerm}`}
                     chunkedLoading
                     iconCreateFunction={(cluster) => {
                       return L.divIcon({

@@ -11,6 +11,7 @@ import { pb } from '../lib/pb';
 import AutocompleteSearch from '../components/AutocompleteSearch';
 import RegionSelect from '../components/RegionSelect';
 import CustomSelect from '../components/CustomSelect';
+import GlobalAddressSearch from '../components/GlobalAddressSearch';
 
 const tipeOptions = ['Full-time', 'Part-time', 'Kontrak', 'Remote', 'Magang'];
 const statusOptions = ['Draft', 'Aktif', 'Tutup'];
@@ -36,7 +37,7 @@ export default function IndustryCreateJob() {
     lokasi: '',
     alamat: '',
     provinsi: '',
-    kota: '',
+    kota_kabupaten: '',
     kecamatan: '',
     kelurahan: '',
     rt: '',
@@ -66,6 +67,13 @@ export default function IndustryCreateJob() {
             deskripsi: job.deskripsi || '',
             persyaratan: job.persyaratan || '',
             lokasi: job.lokasi || '',
+            alamat: job.alamat || '',
+            provinsi: job.provinsi || '',
+            kota_kabupaten: job.kota_kabupaten || job.kota || '',
+            kecamatan: job.kecamatan || '',
+            kelurahan: job.kelurahan || '',
+            rt: job.rt || '',
+            rw: job.rw || '',
             tipe_kerja: job.tipe_kerja || 'Full-time',
             gaji_min: job.gaji_min || '',
             gaji_max: job.gaji_max || '',
@@ -118,10 +126,11 @@ export default function IndustryCreateJob() {
         judul: form.judul,
         deskripsi: form.deskripsi,
         persyaratan: form.persyaratan,
-        lokasi: form.lokasi || `${form.kota}, ${form.provinsi}`, // Summary for display
+        lokasi: (form.kota_kabupaten && form.provinsi) ? `${form.kota_kabupaten}, ${form.provinsi}` : form.lokasi,
         alamat: form.alamat,
         provinsi: form.provinsi,
-        kota: form.kota,
+        kota: form.kota_kabupaten,
+        kota_kabupaten: form.kota_kabupaten,
         kecamatan: form.kecamatan,
         kelurahan: form.kelurahan,
         rt: form.rt,
@@ -146,10 +155,31 @@ export default function IndustryCreateJob() {
       setTimeout(() => navigate('/industri/lowongan'), 1200);
     } catch (err) {
       console.error('Save error:', err);
-      showToast(err?.message || 'Gagal menyimpan lowongan.', 'error');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddressSelect = (item) => {
+    if (!item) {
+      setForm(f => ({
+        ...f,
+        provinsi: '',
+        kota_kabupaten: '',
+        kecamatan: '',
+        kelurahan: '',
+        lokasi: '',
+      }));
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      provinsi: item.province,
+      kota_kabupaten: item.regency,
+      kecamatan: item.district,
+      kelurahan: item.name,
+      lokasi: `${item.regency}, ${item.province}`,
+    }));
   };
 
   if (loading) {
@@ -296,17 +326,68 @@ export default function IndustryCreateJob() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">Lokasi Kerja</label>
-              <div className="relative">
-                <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary opacity-30" />
-                <input
-                  type="text"
-                  value={form.lokasi}
-                  onChange={(e) => setForm(f => ({ ...f, lokasi: e.target.value }))}
-                  className="w-full pl-12 pr-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary placeholder:text-secondary/30 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all font-bold text-sm"
-                  placeholder="Jakarta Selatan, Remote, dll"
-                />
+            <div className="pt-4 border-t border-border-subtle/50">
+              <h4 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                <MapPin size={12} className="text-brand-primary" />
+                Detail Lokasi Kerja
+              </h4>
+
+              <div className="space-y-6">
+                {/* Alamat Jalan */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">Alamat Lengkap (Jalan / No. Kantor) *</label>
+                  <textarea
+                    value={form.alamat}
+                    onChange={(e) => setForm(f => ({ ...f, alamat: e.target.value }))}
+                    rows={2}
+                    className="w-full px-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary placeholder:text-secondary/30 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all font-bold text-sm resize-none"
+                    placeholder="Contoh: Jl. Sudirman No. 45, Gedung Jaya Lt. 5"
+                  />
+                </div>
+
+                {/* Smart Address Search */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">Cari Alamat (Kelurahan, Kecamatan, atau Kota) *</label>
+                  <GlobalAddressSearch 
+                    onSelect={handleAddressSelect}
+                    valueDisplay={form.kelurahan ? `${form.kelurahan}, ${form.kecamatan}, ${form.kota_kabupaten}` : ''}
+                    placeholder="Ketik alamat (misal: Sukapura)..."
+                  />
+                  {form.kelurahan && (
+                    <div className="flex flex-wrap gap-2 mt-3 animate-in fade-in slide-in-from-left-2">
+                      <span className="text-[9px] font-black bg-brand-primary/5 text-brand-primary px-3 py-1 rounded-full border border-brand-primary/10 uppercase tracking-wider">{form.provinsi}</span>
+                      <span className="text-[9px] font-black bg-brand-primary/5 text-brand-primary px-3 py-1 rounded-full border border-brand-primary/10 uppercase tracking-wider">{form.kota_kabupaten}</span>
+                      <span className="text-[9px] font-black bg-brand-primary/5 text-brand-primary px-3 py-1 rounded-full border border-brand-primary/10 uppercase tracking-wider">{form.kecamatan}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">RT</label>
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={form.rt}
+                      onChange={(e) => setForm(f => ({ ...f, rt: e.target.value }))}
+                      onBlur={(e) => formatThreeDigits('rt', e.target.value)}
+                      className="w-full px-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary focus:outline-none focus:border-blue-500/30 transition-all font-bold text-sm"
+                      placeholder="000"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-secondary uppercase tracking-widest ml-1 opacity-60">RW</label>
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={form.rw}
+                      onChange={(e) => setForm(f => ({ ...f, rw: e.target.value }))}
+                      onBlur={(e) => formatThreeDigits('rw', e.target.value)}
+                      className="w-full px-5 py-4 bg-main border border-border-subtle rounded-2xl text-primary focus:outline-none focus:border-blue-500/30 transition-all font-bold text-sm"
+                      placeholder="000"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

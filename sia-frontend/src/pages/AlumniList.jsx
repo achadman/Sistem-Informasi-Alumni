@@ -40,6 +40,8 @@ export default function AlumniList() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [editData, setEditData] = useState(null);
@@ -171,56 +173,55 @@ export default function AlumniList() {
   };
 
   const handleExportCSV = async () => {
-    const loadId = notify.loading('Menyiapkan data ekspor...');
+    setIsExporting(true);
+    const loadId = notify.loading('Mengambil seluruh data alumni...');
     try {
-      // BUG-03 Fix: Limit export to 5000 to prevent crash, use current filters
-      const records = await pb.collection('alumni').getList(1, 5000, {
+      // Ambil SEMUA data tanpa batas menggunakan getFullList
+      const allData = await pb.collection('alumni').getFullList({
         filter: filterString,
-        sort: '-created'
+        sort: '-created',
+        requestKey: 'export-all'
       });
-      
-      const allData = records.items;
+
       if (!allData || allData.length === 0) {
         notify.dismiss(loadId);
         notify.error('Tidak ada data untuk diekspor');
+        setIsExporting(false);
+        setIsExportConfirmOpen(false);
         return;
       }
 
-      if (records.totalItems > 5000) {
-        notify.info('Hanya mengekspor 5000 data terbaru untuk performa.');
-      }
-
       const headers = [
-        "NIM", 
-        "Nama", 
-        "Tempat Lahir", 
-        "Tanggal Lahir", 
-        "Jenis Kelamin", 
-        "Agama", 
-        "Golongan Darah", 
-        "Alamat", 
-        "RT", 
-        "RW", 
-        "Kelurahan", 
-        "Kecamatan", 
-        "Kota/Kabupaten", 
-        "Provinsi", 
-        "Negara", 
-        "Email", 
-        "No. HP", 
-        "Tahun Lulus", 
-        "Program Studi", 
+        "NIM",
+        "Nama",
+        "Tempat Lahir",
+        "Tanggal Lahir",
+        "Jenis Kelamin",
+        "Agama",
+        "Golongan Darah",
+        "Alamat",
+        "RT",
+        "RW",
+        "Kelurahan",
+        "Kecamatan",
+        "Kota/Kabupaten",
+        "Provinsi",
+        "Negara",
+        "Email",
+        "No. HP",
+        "Tahun Lulus",
+        "Program Studi",
         "Fakultas",
-        "IPK", 
-        "Status Kerja", 
-        "Instansi/Perusahaan/Tujuan", 
-        "Jabatan/Posisi/Jenjang", 
-        "Keterangan", 
+        "IPK",
+        "Status Kerja",
+        "Instansi/Perusahaan/Tujuan",
+        "Jabatan/Posisi/Jenjang",
+        "Keterangan",
         "Semester DO",
         "Terverifikasi",
         "Open to Work"
       ];
-      
+
       const rows = allData.map(a => [
         `"${a.nim || ''}"`,
         `"${a.nama || ''}"`,
@@ -229,7 +230,7 @@ export default function AlumniList() {
         `"${a.gender || ''}"`,
         `"${a.agama || ''}"`,
         `"${a.golongan_darah || ''}"`,
-        `"${a.alamat || ''}"`,
+        `"${(a.alamat || '').replace(/"/g, '""')}"`,
         `"${a.rt || ''}"`,
         `"${a.rw || ''}"`,
         `"${a.kelurahan || ''}"`,
@@ -239,149 +240,47 @@ export default function AlumniList() {
         `"${a.negara || ''}"`,
         `"${a.email || ''}"`,
         `"${a.no_hp || ''}"`,
-        a.tahun_lulus,
+        a.tahun_lulus || '',
         `"${a.prodi || ''}"`,
         `"${a.fakultas || ''}"`,
-        a.ipk,
+        a.ipk || '',
         `"${a.status_kerja || ''}"`,
         `"${a.np || ''}"`,
         `"${a.jabatan || ''}"`,
-        `"${a.keterangan || ''}"`,
+        `"${(a.keterangan || '').replace(/"/g, '""')}"`,
         a.semester_dropout || 0,
         a.verified ? 'Ya' : 'Tidak',
         a.is_open_to_work ? 'Ya' : 'Tidak'
       ]);
 
-      const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+      const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
+      const link = document.createElement('a');
       link.href = url;
       link.download = `Alumni_Export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
       notify.dismiss(loadId);
-      notify.success(`Berhasil mengekspor ${allData.length} data`);
+      notify.success(`Berhasil mengekspor ${allData.length.toLocaleString('id-ID')} data alumni`);
     } catch (err) {
       notify.dismiss(loadId);
       notify.error('Gagal mengekspor data');
+    } finally {
+      setIsExporting(false);
+      setIsExportConfirmOpen(false);
     }
   };
 
   return (
     <div className="flex flex-col animate-in fade-in duration-500 pb-12">
-      <div className="flex-none space-y-3 pb-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-end gap-3">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-              <input 
-                type="text" 
-                placeholder="Cari nama atau NIM..." 
-                className="pl-10 pr-4 py-2.5 bg-white rounded-xl border border-slate-100 shadow-sm w-full md:w-64 outline-none focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all text-sm"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-            </div>
-            
-            <button 
-              onClick={() => setIsFilterVisible(!isFilterVisible)}
-              className={`p-2.5 rounded-xl border shadow-sm transition-all relative ${isFilterVisible ? 'bg-brand-primary text-white border-brand-primary' : 'bg-white text-slate-500 border-slate-100 hover:text-brand-primary hover:bg-brand-light'}`}
-            >
-              <Filter size={16} />
-              {Object.values(filters).filter(v => v !== '').length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in">
-                  {Object.values(filters).filter(v => v !== '').length}
-                </span>
-              )}
-            </button>
-            
-            {isAdmin && (
-              <div className="flex gap-2">
-                <button onClick={handleExportCSV} className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-                  <Download size={16} />
-                </button>
-                <button onClick={() => setIsImportModalOpen(true)} className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                  <UploadCloud size={16} />
-                </button>
-                <button 
-                  onClick={() => { setEditData(null); setIsModalOpen(true); }}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-blue-100/30 hover:brightness-110 transition-all active:scale-95 text-sm"
-                >
-                  <Plus size={16} />
-                  <span className="hidden md:inline">Tambah Alumni</span>
-                </button>
-              </div>
-            )}
-        </div>
 
-        {/* Filter Panel */}
-        <AnimatePresence>
-          {isFilterVisible && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-              <div className="bg-white rounded-[2rem] border border-slate-100 shadow-soft p-8 mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                  {/* Reuse existing filter inputs with minor cleanups */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Fakultas</label>
-                    <SelectDropdown
-                      value={filters.fakultasId}
-                      onChange={(val) => { setFilters({...filters, fakultasId: val, prodi: ''}); setCurrentPage(1); }}
-                      placeholder="Semua Fakultas"
-                      options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
-                    />
-                  </div>
-                  {/* ... (Other filters) ... */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Prodi</label>
-                    <SelectDropdown
-                      value={filters.prodi}
-                      onChange={(val) => { setFilters({...filters, prodi: val}); setCurrentPage(1); }}
-                      placeholder="Semua Prodi"
-                      disabled={!filters.fakultasId}
-                      options={prodiList.filter(p => p.fakultas_id === filters.fakultasId).map(p => ({ value: p.nama, label: p.nama }))}
-                    />
-                  </div>
-                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Provinsi</label>
-                    <SelectDropdown
-                      value={filters.provinsi}
-                      onChange={(val) => { setFilters({...filters, provinsi: val, kota: ''}); setCurrentPage(1); }}
-                      placeholder="Semua Provinsi"
-                      options={provinces.map(p => ({ value: p.name, label: p.name }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">
-                      Kota/Kab {loadingRegions && <Loader2 size={10} className="animate-spin" />}
-                    </label>
-                    <SelectDropdown
-                      value={filters.kota}
-                      onChange={(val) => { setFilters({...filters, kota: val}); setCurrentPage(1); }}
-                      placeholder="Semua Kota/Kab"
-                      disabled={!filters.provinsi}
-                      options={regencies.map(r => ({ value: r.name, label: r.name }))}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Tahun Lulus</label>
-                    <SelectDropdown
-                      value={filters.tahun_lulus}
-                      onChange={(val) => { setFilters({...filters, tahun_lulus: val}); setCurrentPage(1); }}
-                      placeholder="Semua Tahun"
-                      options={availableYears.map(year => ({ value: year.toString(), label: year.toString() }))}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 mt-8 pt-6 border-t border-slate-50">
-                  <button onClick={handleResetFilter} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all">Reset Filter</button>
-                  <button onClick={() => { setIsFilterVisible(false); setCurrentPage(1); }} className="px-8 py-2.5 bg-brand-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:brightness-110 transition-all active:scale-95">Terapkan Filter</button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="flex-none space-y-3 pb-3">
+
+
 
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -395,8 +294,70 @@ export default function AlumniList() {
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-soft flex flex-col mt-4 overflow-clip">
         <div className="w-full overflow-x-auto xl:overflow-visible">
           <table className="w-full text-left relative">
-            <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-20 shadow-sm border-b border-slate-100">
+            <thead className="sticky top-0 z-30 shadow-sm border-b border-slate-100 bg-white">
+              {/* Table Toolbar (Integrated into Sticky Header) */}
               <tr>
+                <th colSpan="8" className="p-0 font-normal">
+                  <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/95 backdrop-blur-sm">
+                    <div className="relative group w-full lg:w-96">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Cari Nama, NIM atau Instansi..." 
+                        className="pl-10 pr-4 py-2.5 bg-white rounded-xl border border-slate-200 w-full outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm placeholder:text-slate-400 font-medium"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-end gap-3 w-full lg:w-auto">
+                      <button 
+                        onClick={() => setIsFilterVisible(!isFilterVisible)}
+                        className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-all relative ${isFilterVisible ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        <Filter size={16} />
+                        {Object.values(filters).filter(v => v !== '').length > 0 && (
+                          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                            {Object.values(filters).filter(v => v !== '').length}
+                          </span>
+                        )}
+                      </button>
+                      
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => setIsExportConfirmOpen(true)}
+                            title="Export CSV"
+                            className="flex items-center justify-center w-10 h-10 bg-white rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                          >
+                            <Download size={16} />
+                          </button>
+                          <button 
+                            onClick={() => setIsImportModalOpen(true)} 
+                            title="Import CSV"
+                            className="flex items-center justify-center w-10 h-10 bg-white rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                          >
+                            <UploadCloud size={16} />
+                          </button>
+                          <button 
+                            onClick={() => { setEditData(null); setIsModalOpen(true); }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0a3b7c] hover:bg-[#072a5a] text-white rounded-xl font-bold transition-all text-sm h-10"
+                          >
+                            <Plus size={16} />
+                            <span className="hidden sm:inline">Tambah Alumni</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </th>
+              </tr>
+              
+              {/* Column Headers */}
+              <tr className="bg-slate-50/50">
                 <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">No.</th>
                 <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Alumni</th>
                 <th className="px-5 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">NIM</th>
@@ -480,6 +441,195 @@ export default function AlumniList() {
 
       <AddAlumniModal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditData(null); }} onSave={handleSaveAlumni} editData={editData} />
       <ImportAlumniModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSuccess={handleSaveAlumni} />
+
+      {/* Modal Filter Data */}
+      <AnimatePresence>
+        {isFilterVisible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+            onClick={() => setIsFilterVisible(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <Filter size={20} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-base">Filter Data Alumni</h3>
+                    <p className="text-xs text-slate-400 font-medium">Saring data sesuai kriteria tertentu</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsFilterVisible(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Fakultas</label>
+                    <SelectDropdown
+                      value={filters.fakultasId}
+                      onChange={(val) => { setFilters({...filters, fakultasId: val, prodi: ''}); setCurrentPage(1); }}
+                      placeholder="Semua Fakultas"
+                      options={fakultasList.map(f => ({ value: f.id, label: f.nama }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Prodi</label>
+                    <SelectDropdown
+                      value={filters.prodi}
+                      onChange={(val) => { setFilters({...filters, prodi: val}); setCurrentPage(1); }}
+                      placeholder="Semua Prodi"
+                      disabled={!filters.fakultasId}
+                      options={prodiList.filter(p => p.fakultas_id === filters.fakultasId).map(p => ({ value: p.nama, label: p.nama }))}
+                    />
+                  </div>
+                   <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Provinsi</label>
+                    <SelectDropdown
+                      value={filters.provinsi}
+                      onChange={(val) => { setFilters({...filters, provinsi: val, kota: ''}); setCurrentPage(1); }}
+                      placeholder="Semua Provinsi"
+                      options={provinces.map(p => ({ value: p.name, label: p.name }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1">
+                      Kota/Kab {loadingRegions && <Loader2 size={10} className="animate-spin" />}
+                    </label>
+                    <SelectDropdown
+                      value={filters.kota}
+                      onChange={(val) => { setFilters({...filters, kota: val}); setCurrentPage(1); }}
+                      placeholder="Semua Kota/Kab"
+                      disabled={!filters.provinsi}
+                      options={regencies.map(r => ({ value: r.name, label: r.name }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Tahun Lulus</label>
+                    <SelectDropdown
+                      value={filters.tahun_lulus}
+                      onChange={(val) => { setFilters({...filters, tahun_lulus: val}); setCurrentPage(1); }}
+                      placeholder="Semua Tahun"
+                      options={availableYears.map(year => ({ value: year.toString(), label: year.toString() }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                <button onClick={handleResetFilter} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all">Reset Filter</button>
+                <button onClick={() => { setIsFilterVisible(false); setCurrentPage(1); }} className="px-8 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95">Terapkan Filter</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Konfirmasi Export CSV */}
+      <AnimatePresence>
+        {isExportConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+            onClick={() => { if (!isExporting) setIsExportConfirmOpen(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                    <Download size={20} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-base">Export Data Alumni</h3>
+                    <p className="text-xs text-slate-400 font-medium">Unduh ke format CSV</p>
+                  </div>
+                </div>
+                {!isExporting && (
+                  <button onClick={() => setIsExportConfirmOpen(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="px-6 py-5 space-y-4">
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                    <FileText size={16} className="text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black text-emerald-800">
+                      {totalItems.toLocaleString('id-ID')} data alumni
+                    </p>
+                    <p className="text-xs text-emerald-600 font-medium">
+                      {filterString ? 'Sesuai filter yang aktif' : 'Semua data tanpa filter'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm text-slate-500">
+                  <p className="font-medium">File CSV akan berisi kolom:</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    NIM, Nama, Tempat/Tanggal Lahir, Gender, Agama, Golongan Darah, Alamat lengkap, Email, No. HP, Tahun Lulus, Prodi, Fakultas, IPK, Status Kerja, Instansi, Jabatan, dan lainnya.
+                  </p>
+                </div>
+
+                {isExporting && (
+                  <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                    <Loader2 size={16} className="text-blue-500 animate-spin flex-shrink-0" />
+                    <p className="text-sm text-blue-700 font-medium">Sedang mengambil data, mohon tunggu...</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  onClick={() => setIsExportConfirmOpen(false)}
+                  disabled={isExporting}
+                  className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  disabled={isExporting}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {isExporting ? (
+                    <><Loader2 size={15} className="animate-spin" /> Mengekspor...</>
+                  ) : (
+                    <><Download size={15} /> Ya, Download CSV</>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

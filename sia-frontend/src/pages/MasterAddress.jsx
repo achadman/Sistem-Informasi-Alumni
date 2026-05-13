@@ -22,6 +22,7 @@ export default function MasterAddress() {
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState(''); // Separate input state
   const [searchTerm, setSearchTerm] = useState('');   // Debounced search query
+  const [counts, setCounts] = useState({ prov: 0, reg: 0, dist: 0, vill: 0 });
   
   // Pagination
   const [page, setPage] = useState(1);
@@ -49,6 +50,28 @@ export default function MasterAddress() {
   useEffect(() => {
     fetchData();
   }, [activeTab, selectedProv, selectedReg, selectedDist, searchTerm, page]);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [p, r, d, v] = await Promise.all([
+          pb.collection('provinces').getList(1, 1, { $autoCancel: false }),
+          pb.collection('regencies').getList(1, 1, { $autoCancel: false }),
+          pb.collection('districts').getList(1, 1, { $autoCancel: false }),
+          pb.collection('villages').getList(1, 1, { $autoCancel: false })
+        ]);
+        setCounts({
+          prov: p.totalItems,
+          reg: r.totalItems,
+          dist: d.totalItems,
+          vill: v.totalItems
+        });
+      } catch (err) {
+        console.error("Gagal load stat counts", err);
+      }
+    };
+    fetchCounts();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -217,47 +240,69 @@ export default function MasterAddress() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      <header className="flex justify-end gap-3 mb-2">
-        <div className="flex flex-wrap items-center gap-2">
-           <div className="hidden sm:flex bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 items-center gap-2 text-sm font-bold">
-              <AlertCircle size={16} />
-              <span>Gunakan Import CSV untuk data massal</span>
-           </div>
+    <div className="space-y-6 md:space-y-8">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-16 h-16 bg-brand-primary/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Map size={14} className="text-brand-primary"/> Provinsi</p>
+            <p className="text-2xl md:text-3xl font-black text-slate-800 mt-1 relative z-10">{counts.prov.toLocaleString('id-ID')}</p>
+         </div>
+         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-16 h-16 bg-blue-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Building size={14} className="text-blue-500"/> Kota / Kab</p>
+            <p className="text-2xl md:text-3xl font-black text-slate-800 mt-1 relative z-10">{counts.reg.toLocaleString('id-ID')}</p>
+         </div>
+         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-16 h-16 bg-emerald-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Home size={14} className="text-emerald-500"/> Kecamatan</p>
+            <p className="text-2xl md:text-3xl font-black text-slate-800 mt-1 relative z-10">{counts.dist.toLocaleString('id-ID')}</p>
+         </div>
+         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 w-16 h-16 bg-orange-500/5 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><MapPin size={14} className="text-orange-500"/> Desa / Kel</p>
+            <p className="text-2xl md:text-3xl font-black text-slate-800 mt-1 relative z-10">{counts.vill.toLocaleString('id-ID')}</p>
+         </div>
+      </div>
+
+      {/* Control Bar (Tabs & Buttons) */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 animate-in fade-in duration-700">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 bg-white border border-slate-100 shadow-sm p-1.5 rounded-2xl overflow-x-auto custom-scrollbar w-full lg:w-fit">
+           {[
+             { id: 'prov', label: 'Provinsi', icon: <Map size={16} /> },
+             { id: 'reg', label: 'Kota/Kab', icon: <Building size={16} /> },
+             { id: 'dist', label: 'Kecamatan', icon: <Home size={16} /> },
+             { id: 'vill', label: 'Desa/Kel', icon: <MapPin size={16} /> },
+           ].map(tab => (
+             <button
+               key={tab.id}
+               onClick={() => handleTabChange(tab.id)}
+               className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                 activeTab === tab.id ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+               }`}
+             >
+               {tab.icon}
+               {tab.label}
+             </button>
+           ))}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full lg:w-auto">
            <button 
              onClick={() => setIsImportModalOpen(true)}
-             className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-all text-sm"
+             className="flex-1 lg:flex-none bg-slate-800 hover:bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-slate-200 active:scale-95 transition-all text-sm"
            >
-             <Upload size={16} /> <span className="hidden xs:inline">Import</span> CSV
+             <Upload size={18} /> <span>Import CSV</span>
            </button>
            <button 
              onClick={handleAdd}
-             className="bg-brand-primary text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-blue-200 active:scale-95 transition-all text-sm"
+             className="flex-1 lg:flex-none bg-brand-primary text-white px-6 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/30 hover:brightness-110 active:scale-95 transition-all text-sm"
            >
-             <Plus size={16} /> Tambah Data
+             <Plus size={18} /> Tambah Data
            </button>
         </div>
-      </header>
-
-      {/* Tabs — scrollable on mobile */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl overflow-x-auto custom-scrollbar w-full sm:w-fit">
-         {[
-           { id: 'prov', label: 'Provinsi', icon: <Map size={16} /> },
-           { id: 'reg', label: 'Kota/Kab', icon: <Building size={16} /> },
-           { id: 'dist', label: 'Kecamatan', icon: <Home size={16} /> },
-           { id: 'vill', label: 'Desa/Kel', icon: <MapPin size={16} /> },
-         ].map(tab => (
-           <button
-             key={tab.id}
-             onClick={() => handleTabChange(tab.id)}
-             className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
-               activeTab === tab.id ? 'bg-white text-brand-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'
-             }`}
-           >
-             {tab.icon}
-             {tab.label}
-           </button>
-         ))}
       </div>
 
       {/* Autocomplete Hierarchy Filtering Context */}

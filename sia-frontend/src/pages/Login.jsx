@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { GraduationCap, Building2, Shield, Loader2, ArrowRight, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Building2, Shield, Loader2, ArrowRight, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import loginBg from '../assets/login-bg.png';
@@ -24,18 +24,18 @@ export default function Login() {
     
     const res = await login(identifier, password);
     if (res.success) {
-      // Role checking logic
       const userRole = res.data.record.role;
       const expectedRole = activeTab === 'perusahaan' ? 'industri' : activeTab;
 
-      if (userRole !== expectedRole) {
+      // Allow admin to login via any tab, otherwise check role match
+      if (userRole !== expectedRole && userRole !== 'admin') {
         logout();
         const roleNames = {
           alumni: 'Alumni',
           industri: 'Mitra Industri',
           admin: 'Administrator'
         };
-        const currentPortalName = activeTab === 'perusahaan' ? 'Industri' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+        const currentPortalName = activeTab === 'perusahaan' ? 'Industri' : 'Alumni';
         const errorMsg = `Akun Anda terdaftar sebagai ${roleNames[userRole] || userRole}. Anda tidak dapat masuk melalui Portal ${currentPortalName}.`;
         setError(errorMsg);
         toast.error(errorMsg, {
@@ -51,13 +51,12 @@ export default function Login() {
       });
       navigate('/');
     } else {
-      // Enhanced error messaging for failed authentication
       const status = res.error?.status;
       const message = res.error?.message;
       let errorMsg = message || 'Terjadi kesalahan sistem.';
 
       if (status === 400 || message?.toLowerCase().includes('authenticate')) {
-        const portalName = activeTab === 'perusahaan' ? 'Industri' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
+        const portalName = activeTab === 'perusahaan' ? 'Industri' : 'Alumni';
         errorMsg = `Kredensial salah atau akun tidak terdaftar di Portal ${portalName}.`;
       }
 
@@ -78,218 +77,217 @@ export default function Login() {
     setShowPassword(false);
   };
 
-  const getThemeColor = () => {
-    if (activeTab === 'alumni') return 'blue';
-    if (activeTab === 'perusahaan') return 'indigo';
-    return 'emerald';
-  };
-
-  const theme = getThemeColor();
-
   return (
-    <div className="min-h-screen flex bg-white font-outfit">
-      {/* Left Side: Branding & Image (Hidden on small screens) */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-slate-900">
-        <img 
-          src={loginBg} 
-          alt="University Background" 
-          className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 animate-pulse-slow"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
-        
-        {/* Content on Image */}
-        <div className="relative z-10 w-full h-full p-16 flex flex-col justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl flex items-center justify-center shadow-2xl">
-              <GraduationCap size={28} className="text-white" />
-            </div>
-            <span className="text-2xl font-black text-white tracking-tight uppercase">SIA Alumni</span>
+    <div className="h-screen flex bg-slate-900 font-sans overflow-hidden">
+      {/* Left Side: Hero Section */}
+      <div className="hidden lg:flex lg:w-[68%] relative p-12 flex-col justify-between overflow-hidden">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={loginBg} 
+            alt="Campus" 
+            className="w-full h-full object-cover opacity-40 mix-blend-overlay scale-110"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900/80 to-blue-900/20" />
+        </div>
+
+        {/* Top Section */}
+        <div className="relative z-10">
+          <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 mb-8 shadow-2xl">
+            <GraduationCap size={32} className="text-white" />
+          </div>
+          
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-400/30 rounded-full mb-6">
+            <Shield size={12} className="text-blue-400" />
+            <span className="text-[9px] font-black text-blue-300 uppercase tracking-[0.2em]">Heritage & Excellence</span>
           </div>
 
-          <div className="max-w-md">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-            >
-              <h2 className="text-5xl font-black text-white leading-tight mb-6">
-                Gerbang Menuju <span className="text-blue-400">Masa Depan</span> Gemilang.
-              </h2>
-              <p className="text-slate-300 text-lg font-medium leading-relaxed">
-                Platform terpadu untuk alumni, institusi, dan industri guna membangun ekosistem profesional yang saling menguatkan.
-              </p>
-            </motion.div>
-            
-            <div className="flex gap-10 mt-12">
-              <div className="space-y-1">
-                <p className="text-3xl font-black text-white">5K+</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Alumni Aktif</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-3xl font-black text-white">100+</p>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Mitra Industri</p>
-              </div>
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+            className="max-w-2xl"
+          >
+            <h1 className="text-4xl xl:text-5xl font-black text-white leading-[1.15] tracking-tight mb-6">
+              Membangun Masa <br /> Depan Melalui <br />
+              <span className="text-blue-400">Jejaring Alumni.</span>
+            </h1>
+            <p className="text-slate-400 text-base font-medium leading-relaxed max-w-md opacity-80">
+              Sistem Informasi Akademik dan Tracer Study hadir untuk mempererat hubungan antara institusi dan lulusan, serta memfasilitasi pengembangan karir yang berkelanjutan.
+            </p>
+          </motion.div>
+        </div>
 
-          <div className="flex items-center gap-4 text-slate-500 text-xs font-bold tracking-widest uppercase">
-            <span>Privacy Policy</span>
-            <span className="w-1 h-1 bg-slate-700 rounded-full" />
-            <span>Terms of Service</span>
-            <span className="w-1 h-1 bg-slate-700 rounded-full" />
-            <span>&copy; 2026 Universitas Antigravity</span>
+        {/* Bottom Section: Stats */}
+        <div className="relative z-10 flex gap-12">
+          <div className="space-y-1">
+            <p className="text-3xl font-black text-white tracking-tight">15k+</p>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Alumni Aktif</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl font-black text-white tracking-tight">500+</p>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Mitra Perusahaan</p>
           </div>
         </div>
       </div>
 
-      {/* Right Side: Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 md:p-16 bg-slate-50/50">
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-full max-w-[440px]"
-        >
-          {/* Logo mobile only */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20">
-              <GraduationCap size={28} className="text-white" />
+      {/* Right Side: Login Panel */}
+      <div className="w-full lg:w-[32%] bg-white lg:rounded-l-[4rem] relative flex flex-col px-6 md:px-10 py-6 overflow-hidden shadow-[-20px_0_60px_rgba(0,0,0,0.1)]">
+        <div className="flex-1 max-w-[310px] w-full mx-auto flex flex-col justify-center">
+          {/* Branding (Top) */}
+          <div className="flex items-center gap-2.5 mb-8 -ml-0.5">
+            <div className="w-9 h-9 bg-brand-primary rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+              <Building2 size={18} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-black text-primary tracking-tight uppercase">Alumni Portal</h2>
+              <p className="text-[7px] font-bold text-secondary uppercase tracking-[0.2em] opacity-40">SIA & Tracer Study</p>
             </div>
           </div>
-
-          <div className="mb-10 text-center lg:text-left">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Selamat Datang Kembali</h1>
-            <p className="text-slate-500 font-medium">Silakan masuk ke akun portal <span className="text-slate-900 font-bold capitalize">{activeTab}</span> Anda.</p>
+          {/* Welcome Text */}
+          <div className="mb-5">
+            <h3 className="text-lg font-black text-primary tracking-tight mb-0.5">Selamat Datang Kembali</h3>
+            <p className="text-[11px] font-medium text-secondary opacity-70">
+              Silakan masuk menggunakan akun SIA Anda.
+            </p>
           </div>
 
-          {/* Role Tabs */}
-          <div className="flex p-1.5 bg-slate-200/50 backdrop-blur-sm border border-slate-200 rounded-[1.25rem] mb-10">
+          {/* Toggle Tabs */}
+          <div className="flex p-0.5 bg-slate-100 rounded-lg mb-5 border border-slate-200/30">
             {[
-              { id: 'alumni', label: 'Alumni', icon: GraduationCap, color: 'text-blue-600', bg: 'bg-blue-600' },
-              { id: 'perusahaan', label: 'Industri', icon: Building2, color: 'text-indigo-600', bg: 'bg-indigo-600' },
-              { id: 'admin', label: 'Admin', icon: Shield, color: 'text-emerald-600', bg: 'bg-emerald-600' }
+              { id: 'alumni', label: 'Alumni', icon: GraduationCap },
+              { id: 'perusahaan', label: 'Perusahaan', icon: Building2 }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[13px] font-black transition-all relative z-10 ${
-                  activeTab === tab.id 
-                    ? 'text-white' 
-                    : 'text-slate-400 hover:text-slate-600'
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-black transition-all relative z-10 ${
+                  activeTab === tab.id ? 'text-white shadow-md' : 'text-secondary hover:text-primary'
                 }`}
               >
                 {activeTab === tab.id && (
                   <motion.div 
                     layoutId="activeTab"
-                    className={`absolute inset-0 ${tab.bg} rounded-2xl -z-10 shadow-lg shadow-black/5`}
+                    className="absolute inset-0 bg-brand-primary rounded-md -z-10"
                   />
                 )}
-                <tab.icon size={16} />
-                <span className="hidden sm:inline tracking-wide uppercase">{tab.label}</span>
+                <tab.icon size={13} />
+                <span className="uppercase tracking-widest">{tab.label}</span>
               </button>
             ))}
           </div>
 
-          <AnimatePresence mode="wait">
-            <motion.form 
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              onSubmit={handleLogin} 
-              className="space-y-6"
-            >
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-xs font-bold flex items-center gap-3">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-600 shrink-0" />
-                  {error}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-                  {activeTab === 'alumni' ? 'NIM / Akun' : activeTab === 'perusahaan' ? 'Email Bisnis' : 'Admin ID'}
-                </label>
-                <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors">
-                    {activeTab === 'alumni' ? <User size={18} /> : <Mail size={18} />}
-                  </div>
-                  <input 
-                    type={activeTab === 'perusahaan' ? 'email' : 'text'} 
-                    required
-                    className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm font-bold shadow-sm"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder={
-                      activeTab === 'alumni' ? 'Nomor Induk Mahasiswa' : 
-                      activeTab === 'perusahaan' ? 'hr@perusahaan.com' : 
-                      'Admin ID / Email'
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Password</label>
-                  <Link to="/forgot-password" title="Coming soon" className="text-[11px] font-bold text-slate-400 hover:text-blue-600 transition-colors">Lupa sandi?</Link>
-                </div>
-                <div className="relative group">
-                  <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors">
-                    <Lock size={18} />
-                  </div>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    required
-                    className="w-full pl-14 pr-14 py-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all text-sm font-bold shadow-sm"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-              
-              <button 
-                type="submit" 
-                disabled={loading || !identifier || !password}
-                className={`w-full py-4.5 text-white rounded-2xl font-black shadow-2xl transition-all active:scale-[0.98] flex justify-center items-center gap-3 tracking-widest uppercase text-xs ${
-                  theme === 'blue' ? 'bg-blue-600 shadow-blue-500/30 hover:bg-blue-500' :
-                  theme === 'indigo' ? 'bg-indigo-600 shadow-indigo-500/30 hover:bg-indigo-500' :
-                  'bg-emerald-600 shadow-emerald-500/30 hover:bg-emerald-500'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-[11px] font-black flex items-center gap-3 uppercase tracking-wide"
               >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                {loading ? 'Memverifikasi...' : 'Masuk Sekarang'}
-                {!loading && <ArrowRight size={16} />}
-              </button>
-            </motion.form>
-          </AnimatePresence>
-          
-          <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-            {activeTab === 'alumni' && (
-              <p className="text-sm text-slate-500 font-medium">
-                Belum aktivasi akun? <Link to="/activate" className="text-blue-600 hover:text-blue-700 font-black ml-1 transition-all">Aktivasi NIM Sekarang</Link>
-              </p>
+                <AlertCircle size={16} />
+                {error}
+              </motion.div>
             )}
-            {activeTab === 'perusahaan' && (
-              <p className="text-sm text-slate-500 font-medium">
-                Ingin mencari talenta? <Link to="/industri/register" className="text-indigo-600 hover:text-indigo-700 font-black ml-1 transition-all">Daftar Mitra Industri</Link>
-              </p>
-            )}
-            {activeTab === 'admin' && (
-             <p className="text-xs text-slate-400 font-bold tracking-tight">
-               Sistem Informasi Alumni &bull; v2.4.0
-             </p>
-            )}
+
+            <div className="space-y-1">
+              <div className="flex justify-between items-center px-1">
+                <label className="text-[8px] font-black text-secondary uppercase tracking-[0.2em] opacity-50">
+                  {activeTab === 'alumni' ? 'NIM / NPM' : 'Email Bisnis'}
+                </label>
+                {activeTab === 'alumni' && (
+                  <Link to="/support-request" className="text-[8px] font-black text-brand-primary hover:underline uppercase tracking-widest">Lupa?</Link>
+                )}
+              </div>
+              <div className="relative group">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all">
+                  {activeTab === 'alumni' ? <User size={13} /> : <Mail size={13} />}
+                </div>
+                <input 
+                  type={activeTab === 'perusahaan' ? 'email' : 'text'} 
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all text-[11px] font-bold text-primary placeholder:text-secondary/20"
+                  placeholder={activeTab === 'alumni' ? 'NIM / NPM Anda' : 'nama@perusahaan.com'}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between items-center px-1">
+                <label className="text-[8px] font-black text-secondary uppercase tracking-[0.2em] opacity-50">Password</label>
+              </div>
+              <div className="relative group">
+                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-secondary opacity-30 group-focus-within:text-brand-primary group-focus-within:opacity-100 transition-all">
+                  <Lock size={13} />
+                </div>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-4 focus:ring-brand-primary/5 focus:border-brand-primary transition-all text-[12px] font-bold text-primary placeholder:text-secondary/20"
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-secondary hover:text-primary transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-1">
+              <input type="checkbox" id="remember" className="w-3 h-3 rounded border-slate-300 text-brand-primary focus:ring-brand-primary" />
+              <label htmlFor="remember" className="text-[9px] font-bold text-secondary opacity-60">Ingat saya</label>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading || !identifier || !password}
+              className="w-full py-3 bg-brand-primary hover:bg-brand-dark text-white rounded-lg font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-blue-600/10 transition-all active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-50"
+            >
+              {loading ? (
+                <><Loader2 size={14} className="animate-spin" /> Memverifikasi...</>
+              ) : (
+                <><span className="ml-2 text-[10px]">Masuk ke Akun</span> <ArrowRight size={14} /></>
+              )}
+            </button>
+          </form>
+
+          {/* Bottom Actions */}
+          <div className="mt-6 space-y-4">
+            <div className="text-center">
+              <span className="text-[10px] font-medium text-secondary opacity-60">Belum memiliki akun?</span>
+              <Link to="/activate" className="text-[10px] font-black text-amber-600 hover:text-amber-700 ml-2 uppercase tracking-widest inline-flex items-center gap-1 group">
+                Aktivasi NIM <ArrowRight size={10} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            {/* Help Center Card */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200/40 rounded-xl flex items-start gap-3 group hover:bg-white hover:border-brand-primary/20 transition-all">
+              <div className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 shadow-sm group-hover:bg-brand-primary group-hover:text-white transition-all">
+                <AlertCircle size={14} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black text-primary uppercase tracking-wider mb-0.5">Pusat Bantuan</p>
+                <p className="text-[8px] font-medium text-secondary leading-relaxed">
+                  Kendala saat masuk? Hubungi <span className="text-brand-primary font-bold">it-support@univ.ac.id</span>
+                </p>
+              </div>
+            </div>
           </div>
-        </motion.div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto pt-4 text-center">
+          <p className="text-[7px] font-bold text-secondary opacity-25 uppercase tracking-[0.3em]">
+            &copy; 2025 UNIVERSITY ALUMNI MANAGEMENT PORTAL.
+          </p>
+        </div>
       </div>
     </div>
   );

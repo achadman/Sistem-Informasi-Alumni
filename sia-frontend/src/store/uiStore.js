@@ -19,3 +19,8 @@ export const useUIStore = create(
     }
   )
 );
+
+export const useHeaderStore = create((set) => ({
+  headerContent: null,
+  setHeaderContent: (content) => set({ headerContent: content }),
+}));

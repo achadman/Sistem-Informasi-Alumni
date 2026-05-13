@@ -35,8 +35,9 @@ export default function IndustryAlumniSearch() {
     prodi: '',
     minIpk: '',
     status: '',
-    angkatan: '',
     openToWork: false,
+    onlyBookmarked: false,
+    sort: '-created',
   });
 
   const [appliedFilters, setAppliedFilters] = useState({ ...filters });
@@ -110,6 +111,15 @@ export default function IndustryAlumniSearch() {
       if (f.status) filterParts.push(`pekerjaan_status = "${f.status}"`);
       if (f.angkatan) filterParts.push(`angkatan = "${f.angkatan}"`);
       if (f.openToWork) filterParts.push(`is_open_to_work = true`);
+      
+      if (f.onlyBookmarked) {
+        if (bookmarked.size > 0) {
+          const idParts = Array.from(bookmarked).map(id => `id = "${id}"`);
+          filterParts.push(`(${idParts.join(' || ')})`);
+        } else {
+          filterParts.push(`id = "___NONE___"`);
+        }
+      }
 
       const finalFilter = filterParts.join(' && ');
       console.log('Applying Alumni Filter:', finalFilter);
@@ -118,6 +128,7 @@ export default function IndustryAlumniSearch() {
       pb.autoCancellation(false);
       const result = await pb.collection('alumni').getList(pageNum, PER_PAGE, {
         filter: finalFilter || '',
+        sort: f.sort || '-created',
         fields: 'collectionId,collectionName,id,nama,nim,prodi,ipk,angkatan,pekerjaan_status,is_open_to_work,gambar,keahlian,kota,provinsi',
       });
 
@@ -141,13 +152,13 @@ export default function IndustryAlumniSearch() {
   };
 
   const handleResetFilters = () => {
-    const empty = { search: '', fakultasId: '', prodi: '', minIpk: '', status: '', angkatan: '', openToWork: false };
+    const empty = { search: '', fakultasId: '', prodi: '', minIpk: '', status: '', angkatan: '', openToWork: false, onlyBookmarked: false, sort: '-created' };
     setFilters(empty);
     setAppliedFilters(empty);
   };
 
   const activeFilterCount = Object.entries(appliedFilters).filter(([k, v]) => {
-    if (k === 'openToWork') return v === true;
+    if (k === 'openToWork' || k === 'onlyBookmarked') return v === true;
     return v !== '';
   }).length;
 
@@ -267,49 +278,74 @@ export default function IndustryAlumniSearch() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-black text-primary tracking-tight">Pencarian Alumni</h1>
-        <p className="text-secondary text-sm mt-1 font-medium italic opacity-70">
-          {total > 0 ? `${total} alumni ditemukan` : 'Temukan kandidat terbaik untuk perusahaan Anda'}
-        </p>
-      </div>
+      {/* Sticky Header Section */}
+      <div className="sticky top-0 z-30 pt-2 pb-6 bg-main/90 backdrop-blur-md -mx-4 px-4 sm:-mx-8 sm:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="shrink-0">
+            <h1 className="text-2xl font-black text-primary tracking-tight">Pencarian Alumni</h1>
+            <p className="text-secondary text-[10px] font-bold uppercase tracking-[0.2em] mt-0.5 opacity-50">
+              {total > 0 ? `${total} Alumni Ditemukan` : 'Kandidat Terbaik'}
+            </p>
+          </div>
 
-      {/* Search Bar + Filter Button */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-secondary opacity-30" />
-          <input
-            type="text"
-            placeholder="Cari nama atau NIM alumni..."
-            value={filters.search}
-            onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
-            className="w-full pl-14 pr-6 py-4.5 bg-surface border border-border-subtle rounded-2xl text-primary placeholder:text-secondary/30 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-brand-primary transition-all font-bold text-sm shadow-sm"
-          />
+          <div className="flex flex-1 flex-col sm:flex-row items-center gap-3 w-full lg:max-w-3xl">
+            {/* Search Input */}
+            <div className="relative flex-1 w-full">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary opacity-30" />
+              <input
+                type="text"
+                placeholder="Cari nama atau NIM..."
+                value={filters.search}
+                onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                className="w-full pl-11 pr-4 py-3 bg-surface border border-border-subtle rounded-2xl text-sm text-primary placeholder:text-secondary/30 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-brand-primary transition-all font-bold shadow-sm"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={handleApplyFilters}
+                className="flex-1 sm:flex-none px-6 py-3 bg-brand-primary hover:bg-blue-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+              >
+                Cari
+              </button>
+
+              {/* Bookmark Toggle Button */}
+              <button
+                onClick={() => {
+                  const newVal = !filters.onlyBookmarked;
+                  setFilters(f => ({ ...f, onlyBookmarked: newVal }));
+                  setAppliedFilters(f => ({ ...f, onlyBookmarked: newVal }));
+                }}
+                title="Filter Bookmark"
+                className={`p-3 rounded-2xl transition-all active:scale-95 border flex items-center justify-center ${
+                  filters.onlyBookmarked
+                    ? 'bg-amber-500 text-white border-amber-400 shadow-lg shadow-amber-500/20'
+                    : 'bg-surface text-secondary border-border-subtle hover:bg-main'
+                }`}
+              >
+                <Bookmark size={18} fill={filters.onlyBookmarked ? "currentColor" : "none"} />
+              </button>
+
+              {/* Filter Toggle Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`relative p-3 rounded-2xl transition-all active:scale-95 flex items-center justify-center border ${
+                  showFilters || activeFilterCount > (appliedFilters.onlyBookmarked ? 1 : 0)
+                    ? 'bg-brand-primary text-white border-brand-primary shadow-lg shadow-blue-500/20'
+                    : 'bg-surface text-secondary border-border-subtle hover:bg-main'
+                }`}
+              >
+                <SlidersHorizontal size={18} />
+                {(activeFilterCount > (appliedFilters.onlyBookmarked ? 1 : 0)) && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-[9px] flex items-center justify-center font-black shadow-lg">
+                    {activeFilterCount - (appliedFilters.onlyBookmarked ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={handleApplyFilters}
-          className="px-10 py-4.5 bg-brand-primary hover:bg-blue-500 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 shadow-xl shadow-blue-500/20"
-        >
-          Cari
-        </button>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`relative px-6 py-4.5 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 border ${
-            showFilters || activeFilterCount > 0
-              ? 'bg-brand-primary text-white border-brand-primary shadow-lg shadow-blue-500/20'
-              : 'bg-surface text-secondary border-border-subtle hover:bg-main'
-          }`}
-        >
-          <SlidersHorizontal size={16} className={showFilters || activeFilterCount > 0 ? 'text-white' : 'text-brand-primary'} />
-          Filter
-          {activeFilterCount > 0 && (
-            <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center font-black shadow-lg">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
       </div>
 
       {/* Filter Panel */}
@@ -321,16 +357,34 @@ export default function IndustryAlumniSearch() {
             exit={{ opacity: 0, y: -10 }}
             className="bg-white border border-slate-100 rounded-2xl p-6 shadow-soft"
           >
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="font-black text-slate-800">Filter Alumni</h3>
-              <button onClick={handleResetFilters} className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-brand-primary" />
+                <h3 className="font-black text-primary uppercase text-xs tracking-widest">Filter & Urutkan</h3>
+              </div>
+              <button onClick={handleResetFilters} className="text-[10px] font-black text-secondary/40 hover:text-red-500 transition-colors uppercase tracking-widest">
                 Reset Semua
               </button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+              {/* Urutan */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Urutkan</label>
+                <CustomSelect
+                  value={filters.sort}
+                  onChange={(e) => setFilters(f => ({ ...f, sort: e.target.value }))}
+                  options={[
+                    { value: '-created', label: 'Terbaru' },
+                    { value: '-ipk', label: 'IPK Tertinggi' },
+                    { value: 'ipk', label: 'IPK Terendah' },
+                    { value: 'nama', label: 'Nama (A-Z)' }
+                  ]}
+                  placeholder="Urutkan"
+                />
+              </div>
               {/* Fakultas */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Fakultas</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Fakultas</label>
                 <CustomSelect
                   value={filters.fakultasId}
                   onChange={(e) => setFilters(f => ({ ...f, fakultasId: e.target.value, prodi: '' }))}
@@ -340,8 +394,8 @@ export default function IndustryAlumniSearch() {
               </div>
 
               {/* Program Studi */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Prodi</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Prodi</label>
                 <CustomSelect
                   value={filters.prodi}
                   onChange={(e) => setFilters(f => ({ ...f, prodi: e.target.value }))}
@@ -352,8 +406,8 @@ export default function IndustryAlumniSearch() {
               </div>
 
               {/* Status Kerja */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Status</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Status</label>
                 <CustomSelect
                   value={filters.status}
                   onChange={(e) => setFilters(f => ({ ...f, status: e.target.value }))}
@@ -368,8 +422,8 @@ export default function IndustryAlumniSearch() {
               </div>
 
               {/* IPK Minimum */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">IPK Min</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">IPK Min</label>
                 <CustomSelect
                   value={filters.minIpk}
                   onChange={(e) => setFilters(f => ({ ...f, minIpk: e.target.value }))}
@@ -384,8 +438,8 @@ export default function IndustryAlumniSearch() {
               </div>
 
               {/* Angkatan */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Angkatan</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Angkatan</label>
                 <CustomSelect
                   value={filters.angkatan}
                   onChange={(e) => setFilters(f => ({ ...f, angkatan: e.target.value }))}
@@ -395,27 +449,29 @@ export default function IndustryAlumniSearch() {
               </div>
 
               {/* Open to Work */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Preferensi</label>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] ml-1">Preferensi</label>
                 <button
                   onClick={() => setFilters(f => ({ ...f, openToWork: !f.openToWork }))}
-                  className={`w-full px-3 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                  className={`w-full input-warm flex items-center justify-center font-bold transition-all border ${
                     filters.openToWork
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-slate-50 text-slate-500 border-slate-100'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 ring-2 ring-emerald-500/10'
+                      : 'text-secondary opacity-70'
                   }`}
                 >
-                  ✅ Open to Work
+                  <span className="text-xs">✅ Open to Work</span>
                 </button>
               </div>
             </div>
 
-            <button
-              onClick={handleApplyFilters}
-              className="mt-5 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-all active:scale-95"
-            >
-              Terapkan Filter
-            </button>
+            <div className="flex justify-end mt-8">
+              <button
+                onClick={handleApplyFilters}
+                className="px-8 py-3 bg-brand-primary hover:bg-blue-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+              >
+                Terapkan Filter
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -470,6 +526,14 @@ export default function IndustryAlumniSearch() {
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold border border-emerald-100">
               Open to Work
               <button onClick={() => { setFilters(f => ({...f, openToWork: false})); setAppliedFilters(f => ({...f, openToWork: false})); }}>
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {appliedFilters.onlyBookmarked && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-xs font-bold border border-amber-100">
+              Hanya Bookmark
+              <button onClick={() => { setFilters(f => ({...f, onlyBookmarked: false})); setAppliedFilters(f => ({...f, onlyBookmarked: false})); }}>
                 <X size={12} />
               </button>
             </span>

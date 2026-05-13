@@ -4,7 +4,7 @@ import { pb } from '../lib/pb';
 import RegionSelect from '../components/RegionSelect';
 import CustomSelect from '../components/CustomSelect';
 import SocialMediaEditor, { getPlatformIcon, socialPlatforms } from '../components/SocialMediaEditor';
-import { Camera, Edit2, KeyRound, ImageIcon, CheckCircle2, Star, Briefcase, FileText, MapPin, Mail, Phone, BookOpen } from 'lucide-react';
+import { Camera, Edit2, Plus, KeyRound, ImageIcon, CheckCircle2, Star, Briefcase, FileText, MapPin, Mail, Phone, BookOpen } from 'lucide-react';
 
 const BANNER_TEMPLATES = [
   { id: 'blue_geo',   label: 'Biru Geometris', src: '/banner_blue_geo.png' },
@@ -45,6 +45,22 @@ export default function AlumniProfile() {
   const [certList, setCertList] = useState([]);
   const [deletedCertIds, setDeletedCertIds] = useState([]);
   const [savingSkills, setSavingSkills] = useState(false);
+  
+  const [isAddCertOpen, setIsAddCertOpen] = useState(false);
+  const [savingNewCert, setSavingNewCert] = useState(false);
+  const [newCertData, setNewCertData] = useState({
+    nama_keahlian: '',
+    tanggal_mulai: '',
+    tanggal_selesai: '',
+    file_sertifikat: null,
+    file_dokumentasi: null
+  });
+
+  // Contact Modal
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({});
+  const [savingContact, setSavingContact] = useState(false);
+
   const certRef = useRef(null);
 
   useEffect(() => {
@@ -95,6 +111,43 @@ export default function AlumniProfile() {
     setDeletedCertIds([]);
     setSkillInput('');
     setIsSkillsOpen(true);
+  };
+
+  const handleOpenAddCert = () => {
+    setNewCertData({
+      nama_keahlian: '',
+      tanggal_mulai: '',
+      tanggal_selesai: '',
+      file_sertifikat: null,
+      file_dokumentasi: null
+    });
+    setIsAddCertOpen(true);
+  };
+
+  const handleSaveNewCert = async () => {
+    if (!newCertData.nama_keahlian.trim()) {
+      alert('Nama Keahlian / Sertifikasi wajib diisi.');
+      return;
+    }
+    setSavingNewCert(true);
+    try {
+      const formData = new FormData();
+      formData.append('alumni', alumniData.id);
+      formData.append('nama_keahlian', newCertData.nama_keahlian);
+      if (newCertData.tanggal_mulai) formData.append('tanggal_mulai', newCertData.tanggal_mulai);
+      if (newCertData.tanggal_selesai) formData.append('tanggal_selesai', newCertData.tanggal_selesai);
+      if (newCertData.file_sertifikat instanceof File) formData.append('file_sertifikat', newCertData.file_sertifikat);
+      if (newCertData.file_dokumentasi instanceof File) formData.append('file_dokumentasi', newCertData.file_dokumentasi);
+      
+      await pb.collection('alumni_sertifikasi').create(formData);
+      setIsAddCertOpen(false);
+      await fetchMyAlumniData(username);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menambah sertifikasi: ' + (err.message || 'Error'));
+    } finally {
+      setSavingNewCert(false);
+    }
   };
 
   const handleAddSkillTag = () => {
@@ -166,7 +219,7 @@ export default function AlumniProfile() {
     e.preventDefault(); setSaving(true);
     try {
       const d = new FormData();
-      ['status_kerja','np','keterangan','gender','provinsi','kota_kabupaten','kecamatan','kelurahan','rt','rw','agama'].forEach(k => d.append(k, formData[k] || ''));
+      ['status_kerja','np','keterangan','gender','provinsi','kota_kabupaten','kecamatan','kelurahan','rt','rw','agama','alamat','tempat_lahir','tanggal_lahir','moto'].forEach(k => d.append(k, formData[k] || ''));
       d.append('is_open_to_work', formData.is_open_to_work ? 'true' : 'false');
       d.append('use_profile_as_cv', formData.use_profile_as_cv ? 'true' : 'false');
       if (formData.cv instanceof File) d.append('cv', formData.cv);
@@ -186,6 +239,34 @@ export default function AlumniProfile() {
       console.error(err);
       alert('Gagal menyimpan: ' + (err.message || 'Error'));
     } finally { setSaving(false); }
+  };
+
+  const handleOpenContact = () => {
+    setContactForm({
+      email: alumniData.email || '',
+      no_hp: alumniData.no_hp || '',
+      social_media: alumniData.social_media
+        ? (typeof alumniData.social_media === 'string' ? JSON.parse(alumniData.social_media) : alumniData.social_media)
+        : []
+    });
+    setIsContactOpen(true);
+  };
+
+  const handleSaveContact = async (e) => {
+    e.preventDefault();
+    setSavingContact(true);
+    try {
+      const d = new FormData();
+      d.append('email', contactForm.email || '');
+      d.append('no_hp', contactForm.no_hp || '');
+      d.append('social_media', JSON.stringify(contactForm.social_media || []));
+      await pb.collection('alumni').update(alumniData.id, d);
+      await fetchMyAlumniData(username);
+      setIsContactOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menyimpan kontak: ' + (err.message || 'Error'));
+    } finally { setSavingContact(false); }
   };
 
   const handlePasswordSubmit = async (e) => {
@@ -271,7 +352,7 @@ export default function AlumniProfile() {
                 <div className="px-10 pb-10">
                   <div className="relative">
                     {/* Avatar */}
-                    <div className="absolute -top-16 left-0 w-40 h-40 rounded-full border-4 border-surface bg-surface shadow-xl overflow-hidden flex items-center justify-center z-10 transition-colors duration-300">
+                    <div className={`absolute -top-16 left-0 w-40 h-40 rounded-full border-4 border-surface bg-surface shadow-xl overflow-hidden flex items-center justify-center z-10 transition-all duration-300 ${alumniData.is_open_to_work ? 'ring-4 ring-emerald-500 ring-offset-2 ring-offset-surface' : ''}`}>
                       {avatarUrl ? (
                         <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
@@ -308,32 +389,48 @@ export default function AlumniProfile() {
                         </div>
                       )}
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm font-bold">
-                      <span className="text-blue-600">{alumniData.status_kerja || 'Belum Bekerja'}</span>
-                      {alumniData.np && <span className="text-primary">{alumniData.np}</span>}
-                      <span className="text-secondary opacity-40">•</span>
-                      <span className="text-secondary">Lulusan {alumniData.tahun_lulus || '-'}</span>
-                      <span className="text-secondary opacity-60 font-medium">NIM: {alumniData.nim}</span>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-secondary uppercase tracking-widest">
-                      <MapPin size={12} className="text-secondary opacity-40" />
-                      {[alumniData.kota_kabupaten, alumniData.provinsi].filter(Boolean).join(', ') || 'Lokasi belum diatur'}
-                    </div>
-
-                    {alumniData.is_open_to_work && (
-                      <div className="mt-6 inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        Terbuka untuk bekerja
+                    {alumniData.moto && (
+                      <div className="mt-1.5 w-full block">
+                        <p className="text-lg text-secondary font-medium tracking-wide">{alumniData.moto}</p>
                       </div>
                     )}
-                    
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-base text-secondary font-medium">
+                      {alumniData.status_kerja === 'Melanjutkan Studi' && alumniData.np ? (
+                        <span>Pelajar di {alumniData.np}</span>
+                      ) : alumniData.status_kerja === 'Bekerja' && alumniData.np ? (
+                        <span>Bekerja di {alumniData.np}</span>
+                      ) : alumniData.np ? (
+                        <span>{alumniData.status_kerja} di {alumniData.np}</span>
+                      ) : (
+                        <span>{alumniData.status_kerja || 'Belum Bekerja'}</span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 text-sm text-secondary font-medium">
+                      {[alumniData.kota_kabupaten, alumniData.provinsi].filter(Boolean).join(', ') || 'Lokasi belum diatur'}
+                      <span className="opacity-30">·</span>
+                      <button
+                        onClick={handleOpenContact}
+                        className="text-blue-500 hover:text-blue-700 underline underline-offset-2 font-medium transition-colors text-sm"
+                      >
+                        Info Kontak
+                      </button>
+                    </div>
+
+
+                    {/* NIM & Lulusan */}
+                    <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-secondary font-medium">
+                      <span>Lulusan {alumniData.tahun_lulus || '-'}</span>
+                      <span className="opacity-40">•</span>
+                      <span>NIM: {alumniData.nim}</span>
+                    </div>
+
                     {/* Render Social Media */}
                     {safeSocialMedia && safeSocialMedia.length > 0 && (
-                      <div className="mt-6 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {safeSocialMedia.map((sm, i) => {
                           const platformObj = socialPlatforms.find(p => p.id === sm.platform) || { label: sm.platform };
                           return (
-                            <div key={i} className="px-4 py-2 bg-main border border-border-subtle rounded-full text-[10px] font-black text-secondary flex items-center gap-2">
+                            <div key={i} className="px-4 py-2 bg-main border border-border-subtle rounded-full text-xs font-medium text-secondary flex items-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer">
                               {getPlatformIcon(sm.platform, 14)} {sm.username || platformObj.label}
                             </div>
                           )
@@ -358,12 +455,17 @@ export default function AlumniProfile() {
                </div>
 
           {/* Keahlian & Sertifikat Section (LinkedIn Timeline Style) */}
-          <div className="bg-surface border border-border-subtle rounded-[2.5rem] p-10 shadow-sm transition-colors duration-300">
+          <div className="bg-surface border border-border-subtle rounded-[2.5rem] p-10 shadow-sm transition-colors duration-300 group">
             <div className="flex justify-between items-center mb-10">
               <h2 className="text-sm font-black text-primary uppercase tracking-widest">Keahlian &amp; Sertifikasi</h2>
-              <button onClick={handleOpenSkills} className="px-5 py-2 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">
-                Kelola Data
-              </button>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={handleOpenAddCert} className="p-2 text-emerald-600 hover:text-white hover:bg-emerald-500 rounded-xl transition-all" title="Tambah Sertifikasi Baru">
+                   <Plus size={16} />
+                </button>
+                <button onClick={handleOpenSkills} className="p-2 text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit Keahlian & Sertifikasi">
+                   <Edit2 size={16} />
+                </button>
+              </div>
             </div>
 
             {/* Skill Tags */}
@@ -444,15 +546,37 @@ export default function AlumniProfile() {
           </div>
 
               {/* Biodata */}
-              <div className="bg-surface border border-border-subtle rounded-[2.5rem] p-10 shadow-sm transition-colors duration-300">
-                <div className="mb-10">
+              <div className="bg-surface border border-border-subtle rounded-[2.5rem] p-10 shadow-sm transition-colors duration-300 group">
+                <div className="mb-10 flex justify-between items-center">
                    <h2 className="text-sm font-black text-primary uppercase tracking-widest">Biodata Lengkap</h2>
+                   <button onClick={handleOpenEdit} className="p-2 text-secondary hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                      <Edit2 size={16} />
+                   </button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-8">
                   <DetailItem label="NIM Mahasiswa" value={alumniData.nim} />
                   <DetailItem label="Program Studi" value={alumniData.prodi} />
                   <DetailItem label="Angkatan / Lulus" value={alumniData.tahun_lulus} />
                   <DetailItem label="Jenis Kelamin" value={alumniData.gender === 'L' ? 'Laki-Laki' : alumniData.gender === 'P' ? 'Perempuan' : '-'} />
+                  
+                  {(() => {
+                    let birthInfo = '-';
+                    if (alumniData.tempat_lahir || alumniData.tanggal_lahir) {
+                      const tpt = alumniData.tempat_lahir || '';
+                      let tgl = '';
+                      let umur = '';
+                      if (alumniData.tanggal_lahir) {
+                        const d = new Date(alumniData.tanggal_lahir);
+                        tgl = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                        const diff = Date.now() - d.getTime();
+                        const ageDate = new Date(diff);
+                        umur = `(${Math.abs(ageDate.getUTCFullYear() - 1970)} Tahun)`;
+                      }
+                      birthInfo = [tpt, tgl].filter(Boolean).join(', ') + (umur ? ` ${umur}` : '');
+                    }
+                    return <DetailItem label="Tempat, Tanggal Lahir" value={birthInfo} />;
+                  })()}
+
                   <DetailItem label="Agama" value={alumniData.agama || '-'} />
                   <DetailItem label="RT / RW" value={`${alumniData.rt || '-'} / ${alumniData.rw || '-'}`} />
                   
@@ -470,34 +594,7 @@ export default function AlumniProfile() {
                 </div>
               </div>
             </div>
-
-            {/* Right Sidebar: Contact & Recommendations */}
             <div className="space-y-6 sticky top-8">
-               {/* Contact Card (Top of Sidebar) */}
-               <div className="bg-surface border border-border-subtle rounded-[2.5rem] p-8 shadow-sm">
-                  <h3 className="text-[10px] font-black text-secondary uppercase tracking-widest mb-6">Informasi Kontak</h3>
-                  <div className="space-y-5">
-                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
-                           <Mail size={18} />
-                        </div>
-                        <div className="min-w-0">
-                           <p className="text-[9px] font-black text-secondary uppercase tracking-widest">Email</p>
-                           <p className="text-xs font-bold text-primary truncate">{alumniData.email || '-'}</p>
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
-                           <Phone size={18} />
-                        </div>
-                        <div className="min-w-0">
-                           <p className="text-[9px] font-black text-secondary uppercase tracking-widest">Telepon</p>
-                           <p className="text-xs font-bold text-primary truncate">{alumniData.no_hp || '-'}</p>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
                <RecommendationSidebar 
                   role="alumni" 
                   currentAlumniId={alumniData.id} 
@@ -594,6 +691,10 @@ export default function AlumniProfile() {
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Nama (Statik)</label>
                     <input type="text" disabled value={formData.nama || ''} className="w-full px-3 py-2 border border-slate-200 rounded-md bg-slate-50 text-slate-500 text-sm" />
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Moto / Teks Singkat (Opsional)</label>
+                    <input type="text" value={formData.moto || ''} onChange={e => setFormData({ ...formData, moto: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Contoh: Tech Enthusiast, UI/UX Designer, Pecinta Persib" maxLength={100} />
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Status Pekerjaan</label>
                     <CustomSelect 
@@ -670,19 +771,67 @@ export default function AlumniProfile() {
                   {/* Region */}
                   <div className="sm:col-span-2 border-t border-slate-100 pt-4">
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Lokasi Domisili</label>
-                    <RegionSelect formData={formData} handleChange={e=>setFormData({...formData,[e.target.name]:e.target.value})} isIndonesia={true} />
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Jalan / No. Rumah</label>
+                        <textarea name="alamat" value={formData.alamat || ''} onChange={e=>setFormData({...formData,alamat:e.target.value})} className="w-full px-3 py-2 rounded-md border border-slate-300 focus:ring-1 focus:ring-blue-500 transition-all outline-none resize-none text-sm" rows="2" placeholder="Jl. Raya No. 123"></textarea>
+                      </div>
+                      <RegionSelect formData={formData} handleChange={e=>setFormData({...formData,[e.target.name]:e.target.value})} isIndonesia={true} />
+                      <div className="grid grid-cols-2 gap-4 sm:w-1/2">
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">RW</label>
+                          <input 
+                            name="rw" 
+                            value={formData.rw || ''} 
+                            onChange={e=>setFormData({...formData,rw:e.target.value})} 
+                            onBlur={(e) => {
+                              const val = e.target.value;
+                              if (val && /^\d+$/.test(val)) setFormData({...formData, rw: val.padStart(3, '0')});
+                            }}
+                            className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm" 
+                            placeholder="001"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">RT</label>
+                          <input 
+                            name="rt" 
+                            value={formData.rt || ''} 
+                            onChange={e=>setFormData({...formData,rt:e.target.value})} 
+                            onBlur={(e) => {
+                              const val = e.target.value;
+                              if (val && /^\d+$/.test(val)) setFormData({...formData, rt: val.padStart(3, '0')});
+                            }}
+                            className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm" 
+                            placeholder="012"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 sm:col-span-2 mt-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Tempat Lahir</label>
+                      <input name="tempat_lahir" value={formData.tempat_lahir || ''} onChange={e=>setFormData({...formData,tempat_lahir:e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Contoh: Jakarta" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Tanggal Lahir</label>
+                      <input type="date" name="tanggal_lahir" value={formData.tanggal_lahir ? formData.tanggal_lahir.split('T')[0] : ''} onChange={e=>setFormData({...formData,tanggal_lahir:e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Jenis Kelamin</label>
                     <CustomSelect 
                       value={formData.gender || ''} 
-                      onChange={e => setFormData({ ...formData, gender: e.target.value })} 
+                      onChange={e => {}} 
                       options={[
                         { value: 'L', label: 'Laki-laki' },
                         { value: 'P', label: 'Perempuan' }
                       ]}
                       placeholder="Pilih"
+                      disabled={true}
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -715,6 +864,71 @@ export default function AlumniProfile() {
           </div>
         </div>
       )}
+
+      {/* ===== MODAL INFO KONTAK ===== */}
+      {isContactOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-elevated border border-border-subtle w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-border-subtle flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Mail size={18} className="text-blue-500" />
+                <h2 className="text-base font-bold text-primary">Info Kontak</h2>
+              </div>
+              <button onClick={() => !savingContact && setIsContactOpen(false)} className="text-secondary hover:text-primary text-xl leading-none">&times;</button>
+            </div>
+            {/* Scrollable Body */}
+            <form onSubmit={handleSaveContact} className="flex flex-col flex-1 min-h-0">
+              <div className="overflow-y-auto flex-1 p-6 space-y-5 custom-scrollbar">
+                {/* Email */}
+                <div>
+                  <label className="flex items-center gap-2 text-[11px] font-bold text-secondary uppercase tracking-widest mb-2">
+                    <Mail size={12} className="text-blue-400" /> Email
+                  </label>
+                  <input
+                    type="email"
+                    value={contactForm.email || ''}
+                    onChange={e => setContactForm(f => ({...f, email: e.target.value}))}
+                    placeholder="contoh@email.com"
+                    className="w-full px-3 py-2.5 border border-border-subtle bg-surface rounded-xl text-sm text-primary focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+                {/* Telepon */}
+                <div>
+                  <label className="flex items-center gap-2 text-[11px] font-bold text-secondary uppercase tracking-widest mb-2">
+                    <Phone size={12} className="text-emerald-400" /> Telepon / WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactForm.no_hp || ''}
+                    onChange={e => setContactForm(f => ({...f, no_hp: e.target.value}))}
+                    placeholder="08xxxxxxxxxx"
+                    className="w-full px-3 py-2.5 border border-border-subtle bg-surface rounded-xl text-sm text-primary focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+                {/* Social Media */}
+                <div className="border-t border-border-subtle pt-4">
+                  <p className="text-[11px] font-bold text-secondary uppercase tracking-widest mb-3">Media Sosial</p>
+                  <SocialMediaEditor
+                    value={contactForm.social_media}
+                    onChange={newVal => setContactForm(f => ({...f, social_media: newVal}))}
+                  />
+                </div>
+              </div>
+              {/* Footer */}
+              <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-subtle flex-shrink-0">
+                <button type="button" onClick={() => setIsContactOpen(false)} disabled={savingContact} className="px-5 py-2 text-sm font-semibold text-secondary rounded-full hover:bg-main disabled:opacity-50 transition-colors">
+                  Batal
+                </button>
+                <button type="submit" disabled={savingContact} className="px-6 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-full disabled:opacity-50 shadow-sm transition-colors">
+                  {savingContact ? 'Menyimpan...' : 'Simpan Kontak'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
 
       {/* ===== MODAL PASSWORD ===== */}
       {isPasswordModalOpen && (
@@ -785,8 +999,7 @@ export default function AlumniProfile() {
               {/* Certificate Upload */}
               <div className="border-t border-border-subtle pt-5 mt-4">
                 <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-semibold text-primary">Sertifikasi &amp; Dokumen Keahlian</label>
-                  <button type="button" onClick={() => setCertList(prev => [...prev, { nama_keahlian: '', tanggal_mulai: '', tanggal_selesai: '', file_sertifikat: null, file_dokumentasi: null }])} className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors">+ Tambah Sertifikasi</button>
+                  <label className="block text-sm font-semibold text-primary">Sertifikasi &amp; Dokumen Keahlian (Edit)</label>
                 </div>
                 
                 <div className="space-y-4">
@@ -864,6 +1077,49 @@ export default function AlumniProfile() {
           </div>
         </div>
       )}
+      {/* ===== MODAL TAMBAH SERTIFIKAT BARU ===== */}
+      {isAddCertOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-elevated border border-border-subtle w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-border-subtle">
+              <h2 className="text-lg font-bold text-primary">Tambah Sertifikasi Baru</h2>
+              <button onClick={() => !savingNewCert && setIsAddCertOpen(false)} className="text-secondary hover:text-primary text-xl leading-none">&times;</button>
+            </div>
+            <div className="overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nama Sertifikasi / Keahlian *</label>
+                <input type="text" value={newCertData.nama_keahlian} onChange={e => setNewCertData({...newCertData, nama_keahlian: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Contoh: AWS Certified Cloud Practitioner" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tgl Mulai (Opsional)</label>
+                  <input type="date" value={newCertData.tanggal_mulai} onChange={e => setNewCertData({...newCertData, tanggal_mulai: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Tgl Selesai / Kedaluwarsa</label>
+                  <input type="date" value={newCertData.tanggal_selesai} onChange={e => setNewCertData({...newCertData, tanggal_selesai: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">File Sertifikat (Opsional)</label>
+                  <input type="file" accept="image/*,application/pdf" onChange={e => setNewCertData({...newCertData, file_sertifikat: e.target.files[0]})} className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Foto Dokumentasi</label>
+                  <input type="file" accept="image/*" onChange={e => setNewCertData({...newCertData, file_dokumentasi: e.target.files[0]})} className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border-subtle bg-elevated rounded-b-xl">
+              <button type="button" onClick={()=>setIsAddCertOpen(false)} disabled={savingNewCert} className="px-4 py-2 text-sm font-semibold text-secondary hover:bg-main rounded-full disabled:opacity-50 transition-colors">Batal</button>
+              <button type="button" onClick={handleSaveNewCert} disabled={savingNewCert} className="px-5 py-2 text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-full disabled:opacity-50 shadow-sm transition-colors">
+                {savingNewCert ? 'Menyimpan...' : 'Simpan Baru'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -872,7 +1128,7 @@ function DetailItem({ label, value, highlight = false }) {
   return (
     <div className="space-y-1">
       <span className="text-[10px] font-black text-secondary uppercase tracking-widest block">{label}</span>
-      <span className={`text-sm font-black ${highlight ? 'text-blue-600' : 'text-primary'}`}>
+      <span className={`text-base font-medium ${highlight ? 'text-blue-600' : 'text-primary'}`}>
         {value || <span className="text-secondary opacity-50 font-medium italic">Data tidak tersedia</span>}
       </span>
     </div>

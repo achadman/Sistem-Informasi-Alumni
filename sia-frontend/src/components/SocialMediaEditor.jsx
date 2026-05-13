@@ -114,44 +114,49 @@ export default function SocialMediaEditor({ value = [], onChange }) {
 
       <div className="space-y-3">
         {(value || []).map((item, index) => (
-          <div key={index} style={{ zIndex: 50 - index }} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-start bg-slate-50/50 p-4 rounded-2xl border border-slate-200 relative group transition-colors hover:bg-slate-50">
-            <div className="md:col-span-4 space-y-1.5 relative z-20">
-               <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Platform</label>
-               <CustomSelect 
-                  value={item.platform} 
-                  options={socialPlatforms} 
-                  onChange={(val) => handleChange(index, 'platform', val)} 
-               />
+          <div key={index} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 relative">
+            {/* Delete button — top right */}
+            <button
+              type="button"
+              onClick={() => handleRemove(index)}
+              className="absolute top-3 right-3 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Hapus"
+            >
+              <Trash2 size={15} />
+            </button>
+
+            {/* Platform */}
+            <div className="space-y-1.5 relative z-20">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-0.5">Platform</label>
+              <CustomSelect
+                value={item.platform}
+                options={socialPlatforms}
+                onChange={(val) => handleChange(index, 'platform', val)}
+              />
             </div>
-            <div className="md:col-span-4 space-y-1.5 relative z-10">
-               <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Username / ID</label>
-               <input 
-                  type="text" 
-                  value={item.username} 
-                  onChange={e => handleChange(index, 'username', e.target.value)} 
-                  placeholder="@username" 
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-blue-500 outline-none shadow-sm transition-colors" 
-                />
+
+            {/* Username */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-0.5">Username / ID</label>
+              <input
+                type="text"
+                value={item.username}
+                onChange={e => handleChange(index, 'username', e.target.value)}
+                placeholder="@username"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-colors"
+              />
             </div>
-            <div className="md:col-span-4 space-y-1.5 relative z-10">
-               <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tautan Web (Opsional)</label>
-               <div className="flex gap-2">
-                 <input 
-                    type="url" 
-                    value={item.link} 
-                    onChange={e => handleChange(index, 'link', e.target.value)} 
-                    placeholder="https://..." 
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-600 focus:border-blue-500 outline-none shadow-sm transition-colors" 
-                  />
-                 <button 
-                    type="button" 
-                    onClick={() => handleRemove(index)} 
-                    className="shrink-0 p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 bg-white border border-slate-200 rounded-xl transition-colors shadow-sm"
-                    title="Hapus"
-                  >
-                   <Trash2 size={18} />
-                 </button>
-               </div>
+
+            {/* URL */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-0.5">Tautan Web (Opsional)</label>
+              <input
+                type="url"
+                value={item.link}
+                onChange={e => handleChange(index, 'link', e.target.value)}
+                placeholder="https://..."
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-200 outline-none transition-colors"
+              />
             </div>
           </div>
         ))}

@@ -32,6 +32,7 @@ const AdminKuesionerList = lazy(() => import('./pages/AdminKuesionerList'));
 const AdminKuesionerBuilder = lazy(() => import('./pages/AdminKuesionerBuilder'));
 const AdminKuesionerResults = lazy(() => import('./pages/AdminKuesionerResults'));
 const CompanyDetail = lazy(() => import('./pages/CompanyDetail'));
+const SupportRequest = lazy(() => import('./pages/SupportRequest'));
 
 const ProtectedRoute = ({ children }) => {
   const { isValid } = useAuthStore();
@@ -86,6 +87,14 @@ function App() {
           element={
             <PublicRoute>
               <Activate />
+            </PublicRoute>
+          } 
+        />
+        <Route 
+          path="/support-request" 
+          element={
+            <PublicRoute>
+              <SupportRequest />
             </PublicRoute>
           } 
         />

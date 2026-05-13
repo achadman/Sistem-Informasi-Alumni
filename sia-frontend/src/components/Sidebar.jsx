@@ -132,17 +132,24 @@ export default function Sidebar() {
       }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
       className={cn(
-        "sidebar-bg flex-col h-full relative z-[40] border-r border-border-subtle overflow-hidden hidden lg:flex"
+        "bg-[#0A66C2] text-white flex-col h-full relative z-[40] border-r border-[#0A66C2] overflow-hidden hidden lg:flex shadow-2xl"
       )}
     >
-      {/* Sidebar Header: Institution Name & Logo */}
-      <div className="pt-6 px-4 pb-2 border-b border-border-subtle/50 flex flex-col items-center justify-center shrink-0 min-h-[60px]">
+      {/* Sidebar Header: Institution Name & Logo horizontally aligned */}
+      <div className="pt-8 px-6 pb-6 border-b border-white/10 flex items-center justify-start gap-3 shrink-0">
         {institution.logoUrl && (
-          <img src={institution.logoUrl} alt="Logo" className="w-10 h-10 object-contain mb-2 drop-shadow-sm" />
+          <div className="w-10 h-10 bg-white rounded-lg p-1 shrink-0 flex items-center justify-center shadow-md">
+             <img src={institution.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+          </div>
         )}
-        <span className="font-display font-bold text-slate-800 dark:text-slate-200 text-xs text-center leading-tight break-words whitespace-normal px-2">
-          {institution.nama || 'SIA Portal'}
-        </span>
+        <div className="flex flex-col items-start overflow-hidden">
+           <span className="font-display font-black text-white text-xl tracking-wider leading-none">
+             UNIBI
+           </span>
+           <span className="text-white/60 text-[10px] tracking-widest uppercase mt-1 font-bold">
+             Alumni Portal
+           </span>
+        </div>
       </div>
 
       <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto overflow-x-hidden pt-4 custom-scrollbar">
@@ -153,10 +160,10 @@ export default function Sidebar() {
             end={item.path === '/admin' || item.path === '/' || item.path === '/industri'}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 relative group text-sm",
+                "flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 relative group text-sm font-medium",
                 isActive
-                  ? "sidebar-item-active"
-                  : "text-secondary hover:bg-black/5 hover:text-primary dark:hover:bg-white/5"
+                  ? "bg-white/15 text-white font-bold shadow-sm"
+                  : "text-white/70 hover:bg-white/10 hover:text-white"
               )
             }
           >
@@ -173,52 +180,11 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer Section: User Popover */}
-      <div className="p-4 border-t border-border-subtle relative bg-main/50 backdrop-blur-md">
-        <button
-          onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-          className={cn(
-            "w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 border border-transparent",
-            isProfileMenuOpen ? "bg-black/5 border-black/10 dark:bg-white/5 dark:border-white/10" : "hover:bg-black/5 dark:hover:bg-white/5 border-border-subtle"
-          )}
-        >
-          <div className="w-10 h-10 rounded-full bg-surface flex items-center justify-center text-brand-primary font-bold border border-border-subtle shadow-sm overflow-hidden flex-shrink-0">
-            {user?.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || 'A'}
-          </div>
-          <div className="flex-1 overflow-hidden text-left">
-            <p className="text-sm text-primary font-black truncate leading-tight">{user?.name || 'User'}</p>
-            <p className="text-[10px] text-secondary truncate mt-0.5">{user?.email}</p>
-          </div>
-        </button>
-
-        <AnimatePresence>
-          {isProfileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute bottom-24 left-4 right-4 elevated-modal p-2 z-[70] overflow-hidden bg-elevated shadow-2xl border border-border-subtle rounded-2xl"
-            >
-              {isAdmin && (
-                <NavLink to="/admin/settings" onClick={() => setIsProfileMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-secondary hover:bg-main hover:text-primary transition-all text-sm font-bold mb-1">
-                  <Settings size={16} /> <span>Pengaturan Institusi</span>
-                </NavLink>
-              )}
-              {!isAdmin && (
-                <NavLink to={isIndustry ? "/industri/profil" : "/settings"} onClick={() => setIsProfileMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-secondary hover:bg-main hover:text-primary transition-all text-sm font-bold mb-1">
-                  <Settings size={16} /> <span>Pengaturan Akun</span>
-                </NavLink>
-              )}
-              <button onClick={() => setIsProfileMenuOpen(false)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-secondary hover:bg-main hover:text-primary transition-all text-sm font-bold mb-2">
-                <HelpCircle size={16} /> <span>Pusat Bantuan</span>
-              </button>
-              <div className="h-px bg-border-subtle w-full mb-2"></div>
-              <button onClick={() => { logout(); setIsProfileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-500/10 transition-all text-sm font-bold">
-                <LogOut size={16} /> <span>Keluar</span>
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="p-4 border-t border-white/10">
+         {/* Footer area if needed, User Profile moved to Navbar */}
+         <div className="flex flex-col items-center justify-center opacity-40 hover:opacity-100 transition-opacity">
+            <span className="text-[10px] font-medium text-white">Versi 1.0.0</span>
+         </div>
       </div>
     </motion.div>
   );
@@ -234,40 +200,33 @@ export default function Sidebar() {
             onClick={() => setMobileMenuOpen(false)}
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] lg:hidden"
           />
-          <motion.div
+            <motion.div
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "tween", duration: 0.25, ease: "easeInOut" }}
-            className="fixed inset-y-0 left-0 w-[80vw] max-w-[300px] bg-white dark:bg-[#1C1917] z-[101] flex flex-col shadow-2xl lg:hidden"
+            className="fixed inset-y-0 left-0 w-[80vw] max-w-[300px] bg-[#0A66C2] text-white z-[101] flex flex-col shadow-2xl lg:hidden"
           >
             {/* Header / Brand */}
-            <div className="flex items-center justify-between px-6 h-20 shrink-0 border-b border-slate-100 dark:border-white/5 gap-2">
+            <div className="flex items-center justify-between px-6 h-20 shrink-0 border-b border-white/10 gap-2">
               <div className="flex items-center gap-3 flex-1">
                  {institution.logoUrl && (
-                   <img src={institution.logoUrl} alt="Logo" className="w-8 h-8 object-contain drop-shadow-sm" />
+                   <div className="w-8 h-8 bg-white rounded-md p-0.5 shrink-0 flex items-center justify-center">
+                     <img src={institution.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                   </div>
                  )}
-                 <span className="font-display font-bold text-slate-800 dark:text-slate-200 text-xs text-left leading-tight break-words whitespace-normal line-clamp-2">
-                   {institution.nama || 'SIA Portal'}
-                 </span>
+                 <div className="flex flex-col items-start overflow-hidden">
+                    <span className="font-display font-black text-white text-lg tracking-wider leading-none">
+                      UNIBI
+                    </span>
+                 </div>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
+                className="p-2 text-white/70 hover:text-white transition-colors shrink-0"
               >
                 <X size={20} />
               </button>
-            </div>
-
-            {/* User Info Minimal */}
-            <div className="px-6 py-5 flex items-center gap-3 border-b border-slate-100 dark:border-white/5">
-              <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center text-slate-600 dark:text-slate-300 font-bold overflow-hidden shrink-0">
-                {user?.avatar ? <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" /> : user?.name?.charAt(0) || 'A'}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate">{user?.name || 'Pengguna'}</p>
-                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-              </div>
             </div>
 
             {/* Navigation Links */}
@@ -282,8 +241,8 @@ export default function Sidebar() {
                     cn(
                       "flex items-center gap-4 px-4 py-3 rounded-xl transition-colors text-sm font-medium",
                       isActive
-                        ? "text-blue-600 bg-blue-50/50 dark:bg-blue-500/10 dark:text-blue-400"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
+                        ? "bg-white/15 text-white font-bold"
+                        : "text-white/70 hover:bg-white/10 hover:text-white"
                     )
                   }
                 >
@@ -301,10 +260,10 @@ export default function Sidebar() {
             </nav>
 
             {/* Footer / Logout */}
-            <div className="p-4 border-t border-slate-100 dark:border-white/5 pb-safe">
+            <div className="p-4 border-t border-white/10 pb-safe">
                <button 
                   onClick={() => { logout(); setMobileMenuOpen(false); }} 
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-sm font-medium"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/20 transition-colors text-sm font-bold"
                >
                   <LogOut size={18} /> Keluar
                </button>

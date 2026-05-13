@@ -136,7 +136,8 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
         prodi: '',
         ipk: '',
         tempat_lahir: '',
-        tanggal_lahir: ''
+        tanggal_lahir: '',
+        moto: ''
       });
       setSelectedFakultasId('');
     }
@@ -283,6 +284,10 @@ export default function AddAlumniModal({ isOpen, onClose, onSave, editData = nul
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nama Lengkap</label>
                 <input required name="nama" value={formData.nama} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all outline-none" placeholder="Nama sesuai ijazah" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Moto / Teks Singkat (Opsional)</label>
+                <input name="moto" value={formData.moto || ''} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-brand-light focus:border-brand-primary/40 transition-all outline-none" placeholder="Contoh: Tech Enthusiast, UI/UX Designer" maxLength={100} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

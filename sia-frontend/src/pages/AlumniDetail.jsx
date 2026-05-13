@@ -137,7 +137,7 @@ export default function AlumniDetail() {
               <div className="flex flex-col items-start gap-4 md:gap-6 -mt-16 md:-mt-24 mb-8 md:mb-10 px-1 md:px-2">
                 {/* Avatar Container */}
                 <div className="relative">
-                  <div className="w-32 h-32 md:w-48 md:h-48 rounded-full border-[6px] md:border-[8px] border-white bg-white shadow-2xl overflow-hidden flex items-center justify-center">
+                  <div className={`w-32 h-32 md:w-48 md:h-48 rounded-full border-[6px] md:border-[8px] border-white bg-white shadow-2xl overflow-hidden flex items-center justify-center transition-all duration-300 ${person.is_open_to_work ? 'ring-4 ring-emerald-500 ring-offset-2 ring-offset-white' : ''}`}>
                     {avatarUrl ? (
                       <img src={avatarUrl} alt={person.nama} className="w-full h-full object-cover" />
                     ) : (
@@ -158,34 +158,43 @@ export default function AlumniDetail() {
                       </div>
                     )}
                   </div>
+                  {person.moto && (
+                    <div className="mt-1.5 w-full block">
+                      <p className="text-lg text-slate-600 font-medium tracking-wide">{person.moto}</p>
+                    </div>
+                  )}
 
-                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 text-[10px] md:text-[11px] font-black uppercase tracking-widest">
-                    <span className="text-blue-600 px-3 md:px-4 py-2 bg-blue-50 rounded-xl border border-blue-100/50">{person.status_kerja || 'Belum Bekerja'}</span>
-                    {person.np && <span className="text-slate-700">{person.np}</span>}
-                    <span className="text-slate-300 font-light text-lg hidden sm:block">|</span>
-                    <span className="text-slate-500">Lulusan {person.tahun_lulus || '-'}</span>
-                    <span className="text-slate-500 bg-slate-100 px-3 md:px-4 py-2 rounded-xl border border-slate-200/50">NIM: {person.nim}</span>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-base text-slate-600 font-medium">
+                    {person.status_kerja === 'Melanjutkan Studi' && person.np ? (
+                      <span>Study at {person.np}</span>
+                    ) : person.status_kerja === 'Bekerja' && person.np ? (
+                      <span>Bekerja di {person.np}</span>
+                    ) : person.np ? (
+                      <span>{person.status_kerja} di {person.np}</span>
+                    ) : (
+                      <span>{person.status_kerja || 'Belum Bekerja'}</span>
+                    )}
                   </div>
                 </div>
               </div>
 
-                <div className="mt-4 flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  <MapPin size={12} className="text-slate-300" />
+                <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 font-medium">
                   {person.kota_kabupaten || person.kota || 'Lokasi tidak disebutkan'}, {person.provinsi || '-'}
                 </div>
 
-                {person.is_open_to_work && (
-                  <div className="mt-6 inline-flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    Open to Work
-                  </div>
-                )}
+
+                {/* NIM & Lulusan */}
+                <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-500 font-medium">
+                  <span>Lulusan {person.tahun_lulus || '-'}</span>
+                  <span className="opacity-40">•</span>
+                  <span>NIM: {person.nim}</span>
+                </div>
 
                 {/* Social Media Pills */}
                 {safeSocialMedia.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-6">
+                  <div className="flex flex-wrap gap-2 mt-3">
                     {safeSocialMedia.map((sm, i) => (
-                      <div key={i} className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-full text-[10px] font-black text-slate-500 flex items-center gap-2">
+                      <div key={i} className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-full text-xs font-medium text-slate-600 flex items-center gap-2">
                         {getPlatformIcon(sm.platform, 14)}
                         {sm.username}
                       </div>
@@ -390,7 +399,7 @@ function DetailItem({ label, value, highlight = false }) {
   return (
     <div className="space-y-1">
       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{label}</span>
-      <span className={`text-sm font-black ${highlight ? 'text-blue-600' : 'text-slate-800'}`}>
+      <span className={`text-base font-medium ${highlight ? 'text-blue-600' : 'text-slate-800'}`}>
         {value || <span className="text-slate-300 font-medium italic">Data tidak tersedia</span>}
       </span>
     </div>

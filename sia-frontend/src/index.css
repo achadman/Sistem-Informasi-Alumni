@@ -15,9 +15,9 @@
   --color-border-subtle: var(--border-subtle);
 
   /* ── Warm Soft Neutral Palette ── */
-  --color-brand-primary:  #4F7FE8;   /* Desaturated blue — main CTA */
-  --color-brand-dark:     #3B6FD4;   /* Slightly deeper for hover */
-  --color-brand-light:    #EEF3FD;   /* Very pale blue for hover bg */
+  --color-brand-primary:  #0A66C2;   /* Deep Blue — main CTA */
+  --color-brand-dark:     #08539E;   /* Slightly deeper for hover */
+  --color-brand-light:    #E6F0F9;   /* Very pale blue for hover bg */
   --color-brand-bg:       #F7F5F2;   /* Warm off-white page bg */
   --color-brand-accent:   #5BAD8F;   /* Muted green */
   --color-brand-lavender: #9B8EC4;   /* Soft purple */
@@ -61,7 +61,7 @@
     --glass-bg:     rgba(20, 18, 16, 0.88);
     --glass-border: rgba(255, 255, 255, 0.07);
 
-    --color-brand-primary: #6B9FD4; /* Muted blue for dark */
+    --color-brand-primary: #3B82F6; /* Brighter blue for dark mode visibility */
     --color-brand-accent:  #5BAD8F;
   }
 
@@ -119,8 +119,8 @@
 
   /* ── Sidebar active state: muted indigo, no hard shadow ── */
   .sidebar-item-active {
-    background-color: rgba(79, 127, 232, 0.12) !important;  /* brand-primary/12 */
-    color: #4F7FE8 !important;
+    background-color: rgba(10, 102, 194, 0.12) !important;  /* brand-primary/12 */
+    color: #0A66C2 !important;
     font-weight: 600 !important;
   }
 
@@ -137,19 +137,19 @@
     color: var(--text-primary);
   }
   .input-warm:focus {
-    border-color: rgba(79, 127, 232, 0.4);
-    box-shadow: 0 0 0 3px rgba(79, 127, 232, 0.08);
+    border-color: rgba(10, 102, 194, 0.4);
+    box-shadow: 0 0 0 3px rgba(10, 102, 194, 0.08);
   }
 
   /* ── Primary button: desaturated blue ── */
   .btn-primary {
-    background-color: #4F7FE8;
+    background-color: #0A66C2;
     color: #ffffff;
     font-weight: 600;
     @apply rounded-xl px-5 py-2.5 text-sm transition-all duration-200 active:scale-95;
   }
   .btn-primary:hover {
-    background-color: #3B6FD4;
+    background-color: #08539E;
   }
 
   /* ── Scrollbar: warm neutral ── */
